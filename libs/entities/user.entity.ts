@@ -1,0 +1,36 @@
+// libs/entities/user.entity.ts
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from "typeorm";
+import { AdminProfile } from "./admin-profile.entity";
+import { JudgeProfile } from "./judge-profile.entity";
+import { ParticipantProfile } from "./participant-profile.entity";
+
+export enum UserRole {
+  ADMIN = "admin",
+  JUDGE = "judge",
+  PARTICIPANT = "participant",
+}
+
+@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @Column({ unique: true })
+  email!: string;
+
+  @Column()
+  password!: string;
+
+  @Column({ type: "enum", enum: UserRole })
+  role!: UserRole;
+
+  // Relations to role-specific profiles
+  @OneToOne(() => AdminProfile, (admin) => admin.user)
+  adminProfile?: AdminProfile;
+
+  @OneToOne(() => JudgeProfile, (judge) => judge.user)
+  judgeProfile?: JudgeProfile;
+
+  @OneToOne(() => ParticipantProfile, (participant) => participant.user)
+  participantProfile?: ParticipantProfile;
+}
