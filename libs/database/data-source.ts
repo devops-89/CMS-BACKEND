@@ -1,0 +1,17 @@
+import "reflect-metadata";
+import { DataSource } from "typeorm";
+
+
+export const AppDataSource = new DataSource({
+  type: "postgres",
+  host: process.env.DB_HOST || "db",
+  port: Number(process.env.DB_PORT) || 5432,
+  username: process.env.DB_USERNAME || "admin",
+  password: process.env.DB_PASSWORD || "launchpad@123",
+  database: process.env.DB_NAME || "launchpad_db",
+
+  synchronize: true,
+  logging: true,
+
+  entities: [__dirname + "/../entities/**/*.entity{.ts,.js}"],
+});

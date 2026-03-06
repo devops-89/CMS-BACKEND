@@ -62,5 +62,23 @@ When you edit files locally -> container see changes instantly.
 If you are using ts-node-dev, it auto starts.
 so development feels normal.
 
+# Clearing and rebuilding the docker container
+
+Clearning out the old volumes or corrupted volumes
+```
+docker system prune -a --volumes
+```
+
+Build image without catching the changes:
+```
+docker compose build --no-cache
+```
+
+Start the docker container with the image:
+```
+docker compose build --no-cache
+```
+
+
 
 
