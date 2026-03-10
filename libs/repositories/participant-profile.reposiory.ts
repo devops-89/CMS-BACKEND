@@ -14,14 +14,18 @@ export class ParticipantProfileRepository {
     return this.repo.save(profile);
   }
 
-  async findByUserId(userId: number) {
+  async findByUserId(userId: string) {
     return this.repo.findOne({ 
       where: { user: { id: userId } }, 
       relations: ["user"] 
     });
   }
 
-  async updateScore(userId: number, score: number) {
-    return this.repo.update({ user: { id: userId } }, { score });
+  // async updateScore(userId: string, score: number) {
+  //   return this.repo.update({ user: { id: userId } }, { score });
+  // }
+
+  async updateParticipantProfile(userId:string, data:Partial<ParticipantProfile>){
+      return this.repo.update({user:{id:userId}},data);
   }
 }

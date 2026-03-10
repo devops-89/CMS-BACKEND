@@ -14,14 +14,18 @@ export class AdminProfileRepository {
     return this.repo.save(profile);
   }
 
-  async findByUserId(userId: number) {
+  async findByUserId(userId: string) {
     return this.repo.findOne({ 
       where: { user: { id: userId } }, 
       relations: ["user"] 
     });
   }
 
-  async updateAdminCode(userId: number, adminCode: string) {
-    return this.repo.update({ user: { id: userId } }, { adminCode });
+  // async updateAdminCode(userId: string, adminCode: string) {
+  //   return this.repo.update({ user: { id: userId } }, { adminCode });
+  // }
+
+  async updateAdminProfile(userId:string,data:Partial<AdminProfile>){
+    return this.repo.update({user:{id:userId}},data);
   }
 }
