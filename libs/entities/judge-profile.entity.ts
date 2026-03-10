@@ -4,8 +4,8 @@ import { User } from "./user.entity";
 
 @Entity()
 export class JudgeProfile {
-  @PrimaryGeneratedColumn()
-  id!: number;
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
   @OneToOne(() => User, (user) => user.judgeProfile)
   @JoinColumn()

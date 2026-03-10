@@ -5,8 +5,8 @@ import { User } from "./user.entity";
 
 @Entity()
 export class ParticipantProfile {
-  @PrimaryGeneratedColumn()
-  id!: number;
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
   @OneToOne(() => User, (user) => user.participantProfile)
   @JoinColumn()

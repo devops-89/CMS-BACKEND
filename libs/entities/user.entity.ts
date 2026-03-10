@@ -10,10 +10,10 @@ export enum UserRole {
   PARTICIPANT = "participant",
 }
 
-@Entity()
+@Entity("users")
 export class User {
-  @PrimaryGeneratedColumn()
-  id!: number;
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
   @Column({ unique: true })
   email!: string;

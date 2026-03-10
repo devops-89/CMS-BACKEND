@@ -21,7 +21,7 @@ export class UserRepository {
     });
   }
 
-  async findById(id: number) {
+  async findById(id: string) {
     return this.repo.findOne({ 
       where: { id },
       relations: ["adminProfile", "judgeProfile", "participantProfile"]
@@ -32,7 +32,7 @@ export class UserRepository {
     return this.repo.find({ where: { role } });
   }
 
-  async updatePassword(userId: number, newPassword: string) {
+  async updatePassword(userId: string, newPassword: string) {
     return this.repo.update(userId, { password: newPassword });
   }
 }
