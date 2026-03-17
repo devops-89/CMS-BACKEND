@@ -7,7 +7,9 @@ export class JudgeProfile {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @OneToOne(() => User, (user) => user.judgeProfile)
+  @OneToOne(() => User, (user) => user.judgeProfile,{
+    onDelete:"CASCADE"
+  })
   @JoinColumn()
   user!: User;
 

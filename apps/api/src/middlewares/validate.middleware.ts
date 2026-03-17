@@ -2,10 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import { ZodTypeAny } from "zod";
 
 export const validate =
-  (schema: ZodTypeAny) =>
+  (schema: ZodTypeAny, source: "body" | "query" | "params" = "body") =>
   (req: Request, res: Response, next: NextFunction) => {
 
-    const result = schema.safeParse(req.body);
+    const result = schema.safeParse(req[source]);
 
     if (!result.success) {
 
@@ -22,7 +22,10 @@ export const validate =
       });
     }
 
-    req.body = result.data;
+    // only overwrite body safely
+    if (source === "body") {
+      req.body = result.data;
+    }
 
     next();
 };
