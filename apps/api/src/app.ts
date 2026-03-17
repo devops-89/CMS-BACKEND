@@ -1,7 +1,13 @@
 import express from "express";
 import authRoutes from "./modules/auth/auth.routes";
 import dotenv from "dotenv";
+import cors from "cors";
 const app = express();
+
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true
+}));
 
 
 dotenv.config();
