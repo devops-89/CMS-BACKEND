@@ -139,11 +139,11 @@ export class UserController {
 
   // get all users with role filter
  async getUsers(
-  req: AuthRequest<{}, {}, {}, getUsersQueryDto>,
+  req: AuthRequest,
   res: Response
 ) {
   try {
-    const { role, page, limit } = req.query;
+    const { role, page, limit } = req.query as getUsersQueryDto;
 
     const result = await this.userRepo.getUsers({
       role,
