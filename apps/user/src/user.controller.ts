@@ -16,7 +16,7 @@ import {
   updateJudgeProfileDto,
   updateParticipantProfileDto,
 } from "@libs/dto/user.dto";
-import { AuthRequest } from "../../middlewares/auth.middleware";
+import { AuthRequest } from "@libs/middlewares/auth.middleware";
 
 export class UserController {
   private userRepo = new UserRepository();
@@ -29,7 +29,7 @@ export class UserController {
     try {
       const userId = req.user!.userId;
 
-      const user = await this.userRepo.findById(userId);
+      const user = await this.userRepo.getUserById(userId);
 
       if (!user) {
         return res.status(404).json({

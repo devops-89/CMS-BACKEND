@@ -1,19 +1,38 @@
 version: "3.9"
 
 services:
-  api:
+  auth-service:
     build: .
-    container_name: launchpad-api
+    container_name: auth-service
+    command: npm run dev:auth
     ports:
-      - "5000:5000"
+      - "5001:5001"
     env_file:
       - .env
     depends_on:
       - db
-    volumes:
-      - .:/app
-      - /app/node_modules
-    command: npm run dev
+
+  user-service:
+    build: .
+    container_name: user-service
+    command: npm run dev:user
+    ports:
+      - "5002:5002"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  # contest-service:
+  #   build: .
+  #   container_name: contest-service
+  #   command: npm run dev:contest
+  #   ports:
+  #     - "5003:5003"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - db
 
   db:
     image: postgres:16
@@ -21,10 +40,6 @@ services:
     restart: always
     env_file:
       - .env
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:

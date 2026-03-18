@@ -1,8 +1,8 @@
 import {Router} from "express";
 import { UserController } from "./user.controller";
-import { authenticate } from "../../middlewares/auth.middleware";
-import { validate } from "../../middlewares/validate.middleware";
-import { authorize } from "../../middlewares/role.middleware";
+import { authenticate } from "@libs/middlewares/auth.middleware";
+import { validate } from "@libs/middlewares/validate.middleware";
+import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
 
 import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema, updateAdminProfileSchema, updateAvatarSchema, updateJudgeProfileSchema, updateParticipantProfileSchema } from "@libs/dto/user.dto";
