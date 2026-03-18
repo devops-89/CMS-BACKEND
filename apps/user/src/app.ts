@@ -11,10 +11,17 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use("/user", userRoutes);
-
-app.get("/", (req, res) => {
-  res.send("Users Service 🚀");
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "user-service",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
+
+app.use("/", userRoutes);
+
+
 
 export default app;

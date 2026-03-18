@@ -28,14 +28,14 @@ router.put("participant-profile", authenticate, authorize(UserRole.PARTICIPANT),
 router.patch("/avatar",authenticate,validate(updateAvatarSchema),controller.updateAvatar.bind(controller));
 
 // get users , filter by role
-router.get("/users",authenticate, validate(getUsersQuerySchema,"query"),controller.getUsers.bind(controller));
+router.get("/",authenticate, validate(getUsersQuerySchema,"query"),controller.getUsers.bind(controller));
 
 // get user by id
-router.get("/users/:id", authenticate, validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
+router.get("/:id", authenticate, validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
 
 
 // delete user by id
-router.delete("/users/:id", authenticate, validate(deleteUserByIdSchema, "params"), controller.deleteUserById.bind(controller));
+router.delete("/:id", authenticate, validate(deleteUserByIdSchema, "params"), controller.deleteUserById.bind(controller));
 
 
 export default router;
