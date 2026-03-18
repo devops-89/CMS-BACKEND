@@ -7,31 +7,24 @@ export class JudgeProfile {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @OneToOne(() => User, (user) => user.judgeProfile,{
-    onDelete:"CASCADE"
+  @OneToOne(() => User, (user) => user.judgeProfile, {
+    onDelete: "CASCADE",
   })
   @JoinColumn()
   user!: User;
 
-  @Column({nullable:true})
-  fullName!:string;
-
-  @Column({nullable:true})
-  phone!:string;
+  @Column({ nullable: true })
+  judgeLicense?: string;
 
   @Column({ nullable: true })
-  judgeLicense?: string; // example judge-specific field
+  specialization?: string;
 
-  @Column({nullable:true})
-  specialization?:string;
+  @Column({ default: true })
+  isActive!: boolean;
 
-  @Column({default:true})
-  isActive!:boolean;
+  @Column({ type: "int", default: 0 })
+  totalEvaluations!: number;
 
-  @Column({type:"int",default:0})
-  totalEvaluations!:number;
-
-  @Column({type:"timestamp",default:()=> "CURRENT_TIMESTAMP"})
-  createdAt!:Date;
-
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  createdAt!: Date;
 }

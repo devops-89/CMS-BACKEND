@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
+import {User,RefreshToken,PasswordResetToken, ParticipantProfile, JudgeProfile,AdminProfile} from "../entities";
 
 
 export const AppDataSource = new DataSource({
@@ -11,7 +12,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || "launchpad_db",
 
   synchronize: true,
-  logging: true,
+  
 
-  entities: [__dirname + "/../entities/**/*.entity{.ts,.js}"],
+  entities: [User,RefreshToken,PasswordResetToken, ParticipantProfile, JudgeProfile,AdminProfile],
 });

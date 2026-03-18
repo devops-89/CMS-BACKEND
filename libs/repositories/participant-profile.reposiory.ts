@@ -9,10 +9,7 @@ export class ParticipantProfileRepository {
     this.repo = AppDataSource.getRepository(ParticipantProfile);
   }
 
-  async createProfile(participantProfile: Partial<ParticipantProfile>) {
-    const profile = this.repo.create(participantProfile);
-    return this.repo.save(profile);
-  }
+  
 
   async findByUserId(userId: string) {
     return this.repo.findOne({ 
@@ -21,9 +18,10 @@ export class ParticipantProfileRepository {
     });
   }
 
-  // async updateScore(userId: string, score: number) {
-  //   return this.repo.update({ user: { id: userId } }, { score });
-  // }
+  async createProfile(data:Partial<ParticipantProfile>){
+    const profile=this.repo.create(data);
+    return this.repo.save(profile);
+  }
 
   async updateParticipantProfile(userId:string, data:Partial<ParticipantProfile>){
       return this.repo.update({user:{id:userId}},data);

@@ -21,9 +21,7 @@ export class AdminProfileRepository {
     });
   }
 
-  // async updateAdminCode(userId: string, adminCode: string) {
-  //   return this.repo.update({ user: { id: userId } }, { adminCode });
-  // }
+  
 
   async updateAdminProfile(userId:string,data:Partial<AdminProfile>){
     return this.repo.update({user:{id:userId}},data);

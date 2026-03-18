@@ -5,22 +5,13 @@ import { validate } from "@libs/middlewares/validate.middleware";
 import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
 
-import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema, updateAdminProfileSchema, updateAvatarSchema, updateJudgeProfileSchema, updateParticipantProfileSchema } from "@libs/dto/user.dto";
+import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema } from "@libs/dto/user.dto";
 
 const router=Router();
 
 const controller=new UserController();
 
 
-
-// update Admin Profile
-router.put("/admin-profile",authenticate,authorize(UserRole.ADMIN), validate(updateAdminProfileSchema),controller.updateAdminProfile.bind(controller));
-
-// update judge profile
-router.put("/judge-profile",authenticate,authorize(UserRole.JUDGE),validate(updateJudgeProfileSchema),controller.updateJudgeProfile.bind(controller));
-
-// update participant profile
-router.put("participant-profile", authenticate, authorize(UserRole.PARTICIPANT),validate(updateParticipantProfileSchema),controller.updateParticipantProfile.bind(controller));
 
 //  update avatar
 router.patch("/avatar",authenticate,validate(updateAvatarSchema),controller.updateAvatar.bind(controller));

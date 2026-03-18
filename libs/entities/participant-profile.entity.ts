@@ -1,55 +1,31 @@
 // libs/entities/participant-profile.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, ManyToOne } from "typeorm";
 import { User } from "./user.entity";
-// import { Contest } from "./contest.entity";
 
-@Entity()
+
+@Entity("participant_profiles")
 export class ParticipantProfile {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @OneToOne(() => User, (user) => user.participantProfile,{
-    onDelete:"CASCADE"
+  @OneToOne(() => User, (user) => user.participantProfile, {
+    onDelete: "CASCADE",
   })
   @JoinColumn()
   user!: User;
 
+  @Column()
+  dateOfBirth!: Date;
 
-  @Column({nullable:true})
-  fullName!:string;
+  @Column()
+  country!: string;
 
-  @Column({nullable:true})
-  phone!:string;
+  @Column()
+  schoolName!: string; // school name
 
-  @Column({nullable:true})
-  country!:string;
+  @Column()
+  grade!: string; // grade
 
-  @Column({nullable:true})
-  organization!:string;
-
-  @Column({nullable:true})
-  category!:string;
-
-  @Column({default:false})
-  isSubmitted!:boolean;
-
-  @Column({default:false})
-  isApproved!:boolean;
-
-//   @ManyToOne(() => Contest)
-//   contest: Contest;
-
-  @Column({ type:"float", default:0})
-  score!:number;
-
-  @Column({nullable:true})
-  submissionTitle!:string;
-
-  @Column({nullable:true})
-  submissionFile!:string;
-
-  @Column({type:"timestamp", default:()=> "CURRENT_TIMESTAMP"  })
-  createdAt!:Date;
-
-  
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  createdAt!: Date;
 }
