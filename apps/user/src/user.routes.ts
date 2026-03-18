@@ -11,9 +11,7 @@ const router=Router();
 
 const controller=new UserController();
 
-// Get Profile
-// Any logged in user can access
-router.get("/me",authenticate,controller.getProfile.bind(controller));
+
 
 // update Admin Profile
 router.put("/admin-profile",authenticate,authorize(UserRole.ADMIN), validate(updateAdminProfileSchema),controller.updateAdminProfile.bind(controller));
@@ -28,7 +26,7 @@ router.put("participant-profile", authenticate, authorize(UserRole.PARTICIPANT),
 router.patch("/avatar",authenticate,validate(updateAvatarSchema),controller.updateAvatar.bind(controller));
 
 // get users , filter by role
-router.get("/",authenticate, validate(getUsersQuerySchema,"query"),controller.getUsers.bind(controller));
+router.get("/all",authenticate, validate(getUsersQuerySchema,"query"),controller.getUsers.bind(controller));
 
 // get user by id
 router.get("/:id", authenticate, validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
