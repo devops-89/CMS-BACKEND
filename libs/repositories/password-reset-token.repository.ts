@@ -13,11 +13,17 @@ export class PasswordResetRepository {
     });
   }
 
-  async findToken(token: string) {
-    return this.repo.findOne({
-      where: { token, used: false }
-    });
-  }
+  async findLatestOtp(userId: string) {
+  return this.repo.findOne({
+    where: {
+      user_id: userId,
+      used: false
+    },
+    order: {
+      created_at: "DESC"
+    }
+  });
+}
 
   async markUsed(id: string) {
     await this.repo.update(id, { used: true });

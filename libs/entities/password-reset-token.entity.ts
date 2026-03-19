@@ -9,12 +9,15 @@ export class PasswordResetToken {
   @Column()
   user_id!: string;
 
-  @Column("text")
-  token!: string;
+   @Column("text")
+  otp!: string;
 
   @Column()
   expires_at!: Date;
 
   @Column({ default: false })
   used!: boolean;
+
+   @CreateDateColumn()
+  created_at!: Date;
 }
