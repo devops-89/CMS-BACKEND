@@ -18,11 +18,14 @@ export class User {
   @Column({ nullable: true })
   avatarUrl?: string;
 
-  @Column({ nullable: true })
+  @Column()
   firstName!: string;
 
-  @Column({ nullable: true })
+  @Column()
   lastName!: string;
+
+  @Column()
+  phone!: string;
 
   @Column({ unique: true })
   email!: string;
@@ -30,8 +33,6 @@ export class User {
   @Column({ select: false })
   password!: string;
 
-  @Column({ nullable: true })
-  phone!: string;
 
   @Column({ type: "enum", enum: UserRole })
   role!: UserRole;

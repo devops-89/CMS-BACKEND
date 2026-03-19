@@ -18,26 +18,23 @@ export const registerSchema = z.object({
   }),
 
   firstName: z
-    .string()
-    .trim()
-    .min(1, "First name cannot be empty")
-    .optional(),
+  .string()
+  .trim()
+  .min(1, "First name is required"),
 
-  lastName: z
-    .string()
-    .trim()
-    .min(1, "Last name cannot be empty")
-    .optional(),
+lastName: z
+  .string()
+  .trim()
+  .min(1, "Last name is required"),
 
-  phone: z
-    .string()
-    .min(8, "Phone number must be at least 8 digits")
-    .max(15, "Phone number cannot exceed 15 digits")
-    .regex(
-      /^\+?[0-9\s-]+$/,
-      "Phone number can only contain digits, spaces, '-' and optional '+'"
-    )
-    .optional(),
+phone: z
+  .string()
+  .min(8, "Phone number must be at least 8 digits")
+  .max(15, "Phone number cannot exceed 15 digits")
+  .regex(
+    /^\+?[0-9\s-]+$/,
+    "Phone number can only contain digits, spaces, '-' and optional '+'"
+  ),
 });
 
 
