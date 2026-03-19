@@ -8,7 +8,7 @@ import { JudgeProfileRepository } from "@libs/repositories";
 import { ParticipantProfileRepository } from "@libs/repositories";
 
 import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
-import { PasswordResetRepository } from "@libs/repositories/password-reset-token.repository";
+import { OtpsRepository } from "@libs/repositories/otps.repository";
 
 import {
   RegisterDto,
@@ -32,7 +32,7 @@ export class AuthController {
   private judgeRepo = new JudgeProfileRepository();
   private participantRepo = new ParticipantProfileRepository();
   private refreshTokenRepo = new RefreshTokenRepository();
-  private passwordResetRepo = new PasswordResetRepository();
+  private otpRepo=new OtpsRepository();
 
   /* -------------------------------- REGISTER -------------------------------- */
 
@@ -307,86 +307,113 @@ async registerParticipant(
     }
   }
 
-  /* ----------------------------- FORGOT PASSWORD ---------------------------- */
+  /* ----------------------------- FORGOT PASSWORD(send otp) ---------------------------- */
 
-  async forgotPassword(req: Request<{}, {}, ForgotPasswordDto>, res: Response) {
-    try {
-      const { email } = req.body;
+ async forgotPassword(req: Request<{}, {}, ForgotPasswordDto>, res: Response) {
+  try {
+    const { email } = req.body;
 
-      const user = await this.userRepo.findByEmail(email);
+    const user = await this.userRepo.findByEmail(email);
 
-      if (!user) {
-        return res.status(401).json({
-          message: "If email exists reset link sent",
-        });
-      }
-
-      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
-        expiresIn: "1d",
-      });
-
-      const expires = new Date();
-      expires.setMinutes(expires.getMinutes() + 15);
-
-      await this.passwordResetRepo.createToken(user.id, token, expires);
-
+    if (!user) {
       return res.json({
-        message: "Reset token generated",
-        data: {
-          resetToken: token,
-        },
-      });
-    } catch (error: any) {
-      return res.status(500).json({
-        message: "Failed to process request",
-        error: error.message,
+        message: "If email exists, OTP sent",
       });
     }
-  }
 
-  /* ------------------------------ RESET PASSWORD ---------------------------- */
+    // 🔥 1. Delete old OTP
+    await this.otpRepo.deleteUserOtps(user.id);
+
+    // 🔥 2. Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 🔐 3. Hash OTP
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    // ⏱ 4. Expiry (5 min)
+    const expires = new Date();
+    expires.setMinutes(expires.getMinutes() + 5);
+
+    // 💾 5. Save OTP
+    await this.otpRepo.createOtp(user.id, hashedOtp, expires);
+
+    // 📩 TODO: Send via email
+    console.log("OTP:", otp);
+
+    return res.json({
+      message: "OTP sent successfully",
+    });
+
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Failed to send OTP",
+      error: error.message,
+    });
+  }
+}
+
+  /* ------------------------------ RESET PASSWORD  ---------------------------- */
 
   async resetPassword(req: Request<{}, {}, ResetPasswordDto>, res: Response) {
-    try {
-      const { token, password } = req.body;
+  try {
+    const { email, otp, password } = req.body;
 
-      const record = await this.passwordResetRepo.findToken(token);
+    const user = await this.userRepo.findByEmail(email);
 
-      if (!record) {
-        return res.status(400).json({
-          message: "Invalid token",
-        });
-      }
-
-      if (record.used) {
-        return res.status(400).json({
-          message: "Token already used",
-        });
-      }
-
-      if (record.expires_at < new Date()) {
-        return res.status(400).json({
-          message: "Token expired",
-        });
-      }
-
-      const hashed = await bcrypt.hash(password, 12);
-
-      await this.userRepo.updatePassword(record.user_id, hashed);
-
-      await this.passwordResetRepo.markUsed(record.id);
-
-      return res.json({
-        message: "Password updated successfully",
-      });
-    } catch (error: any) {
-      return res.status(500).json({
-        message: "Password reset failed",
-        error: error.message,
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid request",
       });
     }
-  }
 
+    const record = await this.otpRepo.findLatestOtp(user.id);
+
+    if (!record) {
+      return res.status(400).json({
+        message: "OTP not found",
+      });
+    }
+
+    // ⏱ Expiry check
+    if (record.expires_at < new Date()) {
+      return res.status(400).json({
+        message: "OTP expired",
+      });
+    }
+
+    if (record.isUsed) {
+      return res.status(400).json({
+        message: "OTP already used",
+      });
+    }
+
+    // 🔐 Compare OTP
+    const isValid = await bcrypt.compare(otp, record.otp);
+
+    if (!isValid) {
+      return res.status(400).json({
+        message: "Invalid OTP",
+      });
+    }
+
+    // 🔑 Update password
+    const hashedPassword = await bcrypt.hash(password, 12);
+    await this.userRepo.updatePassword(user.id, hashedPassword);
+
+    // ✅ Mark OTP used
+    await this.otpRepo.markUsed(record.id);
+
+    return res.json({
+      message: "Password updated successfully",
+    });
+
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Password reset failed",
+      error: error.message,
+    });
+  }
+}
   /* ------------------------------ HEALTH CHECK ----------------------------- */
 
   async health(req: Request, res: Response) {

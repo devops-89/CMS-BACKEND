@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
-import {User,RefreshToken,PasswordResetToken, ParticipantProfile, JudgeProfile,AdminProfile} from "../entities";
+import {User,RefreshToken,Otp, ParticipantProfile, JudgeProfile,AdminProfile} from "../entities";
 
 
 export const AppDataSource = new DataSource({
@@ -14,5 +14,5 @@ export const AppDataSource = new DataSource({
   synchronize: true,
   
 
-  entities: [User,RefreshToken,PasswordResetToken, ParticipantProfile, JudgeProfile,AdminProfile],
+  entities: [User,RefreshToken,Otp, ParticipantProfile, JudgeProfile,AdminProfile],
 });
