@@ -1,20 +1,44 @@
 import {z} from "zod";
 import { UserRole } from "@libs/entities";
 
-// schemas used for request validation
+
 export const registerSchema = z.object({
-  body: z.object({
-    email: z.string().email(),
-    password: z.string().min(6).max(20),
-    role: z.nativeEnum(UserRole),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
 
-    // ✅ New fields (optional for generic register)
-    firstName: z.string().min(1).optional(),
-    lastName: z.string().min(1).optional(),
-    phone: z.string().min(8).max(15).optional(),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .max(20, "Password cannot exceed 20 characters"),
+
+  role: z.nativeEnum(UserRole, {
+    message: "Invalid user role selected",
   }),
-});
 
+  firstName: z
+    .string()
+    .trim()
+    .min(1, "First name cannot be empty")
+    .optional(),
+
+  lastName: z
+    .string()
+    .trim()
+    .min(1, "Last name cannot be empty")
+    .optional(),
+
+  phone: z
+    .string()
+    .min(8, "Phone number must be at least 8 digits")
+    .max(15, "Phone number cannot exceed 15 digits")
+    .regex(
+      /^\+?[0-9\s-]+$/,
+      "Phone number can only contain digits, spaces, '-' and optional '+'"
+    )
+    .optional(),
+});
 
 
 export const registerParticipantSchema = z.object({
@@ -118,7 +142,7 @@ export const resetPasswordSchema = z.object({
 
 
 // Extracting the exact typescript types from the Zod schema for working same as interfaces.
-export type RegisterDto=z.infer<typeof registerSchema>["body"];
+export type RegisterDto=z.infer<typeof registerSchema>;
 export type RegisterParticipantDto=z.infer<typeof registerParticipantSchema>;
 export type LoginDto=z.infer<typeof loginSchema>;
 export type RefreshDto=z.infer<typeof refreshSchema>;
