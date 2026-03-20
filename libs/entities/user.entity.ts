@@ -8,6 +8,21 @@ export enum UserRole {
   ADMIN = "admin",
   JUDGE = "judge",
   PARTICIPANT = "participant",
+  MODERATOR = "moderator",
+}
+
+export enum UserStatus {
+  ACTIVE = "Active",
+  INACTIVE = "Inactive",
+  SUSPENDED = "Suspended",
+  PENDING = "Pending",
+  BANNED = "Banned",
+  REJECTED = "Rejected",
+  UPCOMING = "Upcoming",
+  COMPLETED = "Completed",
+  OFFLINE = "Offline",
+  PUBLISHED = "Published",
+  DRAFT = "Draft",
 }
 
 @Entity("users")
@@ -33,9 +48,18 @@ export class User {
   @Column({ select: false })
   password!: string;
 
-
-  @Column({ type: "enum", enum: UserRole })
+  @Column({
+    type: "enum",
+    enum: UserRole,
+  })
   role!: UserRole;
+
+  @Column({
+    type: "enum",
+    enum: UserStatus,
+    default: UserStatus.ACTIVE,
+  })
+  status!: UserStatus;
 
   // Relations
   @OneToOne(() => AdminProfile, (admin) => admin.user)

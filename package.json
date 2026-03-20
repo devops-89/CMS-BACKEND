@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register apps/api/src/server.ts",
     "dev:auth": "ts-node-dev -r tsconfig-paths/register apps/auth/src/server.ts",
-    "dev:user": "ts-node-dev -r tsconfig-paths/register apps/user/src/server.ts"
+    "dev:user": "ts-node-dev -r tsconfig-paths/register apps/user/src/server.ts",
+    "migration:generate": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json npx typeorm-ts-node-commonjs migration:generate libs/database/migrations/migration -d libs/database/data-source.ts",
+    "migration:run": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json npx typeorm-ts-node-commonjs migration:run -d libs/database/data-source.ts",
+    "migration:revert": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json npx typeorm-ts-node-commonjs migration:revert -d libs/database/data-source.ts"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +28,7 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
+    "cross-env": "^10.1.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",

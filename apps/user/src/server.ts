@@ -4,7 +4,7 @@ const PORT = 5002;
 
   AppDataSource.initialize()
   .then(() => {
-    console.log("✅ Database connected To Users Service.");
+    console.log(" Database connected To Users Service.");
 
     app.listen(PORT, () => {
       console.log(`🚀 Users service running on ${PORT}`);
@@ -12,5 +12,5 @@ const PORT = 5002;
 
   })
   .catch((err) => {
-    console.error("❌ DB connection failed:", err);
+    console.error(" DB connection failed:", err);
   });
