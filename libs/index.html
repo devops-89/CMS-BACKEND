@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+fetch("http://103.150.136.179/api/users/all", {
+  headers: {
+    Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyYWU1Nzk5MS1kYmM5LTQyYmYtODBjOS04MmRkMGFiMGFkOTQiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NzQyNDQ4NDEsImV4cCI6MTc3NDMzMTI0MX0.EYjmzr_rbMOl4X8nVJlhaL85Ikaefje2mIkA2a4ZWuU"
+  }
+})
+.then(res => res.json())
+.then(console.log)
+.catch(console.error);
+</script>
+</body>
+</html>
