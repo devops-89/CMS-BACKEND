@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import { FormBuilderService } from "./form-builder.service";
+import { CreateTemplateDto, SubmitFormDto, TemplateIdParamDto, TemplateParamDto } from "@libs/dto/form-builder.dto";
 
 const service = new FormBuilderService();
 
 export class FormBuilderController {
 
-  createTemplate = async (req: Request, res: Response) => {
+  createTemplate = async (req: Request<{},{},CreateTemplateDto>, res: Response) => {
     try {
       const data = await service.createTemplate(req.body);
 
@@ -27,9 +28,9 @@ export class FormBuilderController {
     });
   };
 
-getTemplate = async (req: Request, res: Response) => {
+getTemplate = async (req: Request<TemplateParamDto>, res: Response) => {
   try {
-    const id = req.params.id as string; // ✅ FIX
+    const id = req.params.id; 
 
     const data = await service.getTemplateById(id);
 
@@ -42,9 +43,9 @@ getTemplate = async (req: Request, res: Response) => {
   }
 };
 
-  submitForm = async (req: Request, res: Response) => {
+  submitForm = async (req: Request<TemplateIdParamDto,{},SubmitFormDto>, res: Response) => {
   try {
-    const templateId = req.params.templateId as string; // ✅ FIX
+    const templateId = req.params.templateId; 
 
     const data = await service.submitForm(templateId, req.body);
 
@@ -57,8 +58,8 @@ getTemplate = async (req: Request, res: Response) => {
   }
 };
 
-  getSubmissions = async (req: Request, res: Response) => {
-  const templateId = req.params.templateId as string; // ✅ FIX
+  getSubmissions = async (req: Request<TemplateIdParamDto,{},{}>, res: Response) => {
+  const templateId = req.params.templateId; 
 
   const data = await service.getSubmissions(templateId);
 

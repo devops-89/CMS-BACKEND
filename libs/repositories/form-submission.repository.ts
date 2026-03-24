@@ -5,7 +5,7 @@ import { FormTemplate } from "@libs/entities/form-template.entity";
 export class FormSubmissionRepository{
     private repo=AppDataSource.getRepository(FormSubmission);
 
-    create(template: FormTemplate,data:any){
+    create(template: FormTemplate,data:Record<string,any>){
         return this.repo.create({template,data});
     }
 

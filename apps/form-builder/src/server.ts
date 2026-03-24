@@ -1,6 +1,6 @@
 import app from "./app";
 import { AppDataSource } from "@libs/database/data-source";
-const PORT = 5002;
+const PORT = 5003;
 
   AppDataSource.initialize()
   .then(() => {
