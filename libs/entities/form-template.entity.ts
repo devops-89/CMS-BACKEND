@@ -1,48 +1,81 @@
-import { PrimaryGeneratedColumn,Column, Entity, CreateDateColumn, UpdateDateColumn, OneToMany } from "typeorm";
+import {
+  PrimaryGeneratedColumn,
+  Column,
+  Entity,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from "typeorm";
 import { FormSubmission } from "./form-submission.entity";
 
-
 // string typing for schema
+// export type FormField={
+//         name:string;
+//         type:"text" | "email" | "number" | "select" | "checkbox" | "date";
+//         label?:string;
+//         required?:boolean;
+//         options?:string[];  // for select
+// }
+
+// export type FormSchema={
+//     fields: FormField[]
+// }
+
+export type FieldConfig = {
+  defaultCountry?: string;
+  onlyCountries?: string[];
+  disablePast?: boolean;
+  disableFuture?: boolean;
+  min?: number;
+  max?: number;
+};
+
 export type FormField={
-        name:string;
-        type:"text" | "email" | "number" | "select" | "checkbox" | "date";
-        label?:string;
-        required?:boolean;
-        options?:string[];  // for select
+    id:string;
+    type:string;
+    label:string;
+    required?:boolean;
+    variant?:string;
+    options?:string[];
+    config?: FieldConfig;
+}
+
+export type FormIdentity={
+    name:string;
+    title:string;
+    timestamp:string;
 }
 
 export type FormSchema={
-    fields: FormField[]
+    form_identity:FormIdentity;
+    fields:FormField[];
 }
 
+
 @Entity("form_templates")
-export class FormTemplate{
-    @PrimaryGeneratedColumn("uuid")
-    id!: string;
+export class FormTemplate {
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
-    @Column()
-    name!:string;
+  @Column()
+  name!: string;
 
-    @Column({type:"jsonb"})
-    schema!:FormSchema;
+  @Column({ type: "jsonb" })
+  schema!: FormSchema;
 
-    @Column({default:true})
-    isActive!:boolean;
+  @Column({ default: true })
+  isActive!: boolean;
 
-    @Column({default:1})
-    version!:number;
+  @Column({ default: 1 })
+  version!: number;
 
-    // Relation with Submissions
-    @OneToMany(()=> FormSubmission,(submission)=>submission.template)
-    submissions!:FormSubmission[];
+  // Relation with Submissions
+  @OneToMany(() => FormSubmission, (submission) => submission.template)
+  submissions!: FormSubmission[];
 
-    @CreateDateColumn()
-    createdAt!: Date;
+  @CreateDateColumn()
+  createdAt!: Date;
 
-    @UpdateDateColumn()
-    updatedAt!: Date;
-
-
-
-
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

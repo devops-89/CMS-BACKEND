@@ -1,45 +1,51 @@
 import {z} from "zod";
 
+// Config Schema
+const configSchema = z.object({
+  defaultCountry: z.string().optional(),
+  onlyCountries: z.array(z.string()).optional(),
+  disablePast: z.boolean().optional(),
+  disableFuture: z.boolean().optional(),
+  min: z.number().optional(),
+  max: z.number().optional()
+}).partial();
+
 //  Field Schema
 export const formFieldSchema = z.object({
-  name: z.string().min(1, "Field name is required"),
+  id: z.string(),
 
-  type: z.enum([
-    "text",
-    "email",
-    "number",
-    "select",
-    "checkbox",
-    "date"
-  ]),
+  type: z.string(), // dynamic now
 
-  label: z.string().optional(),
+  label: z.string(),
+
   required: z.boolean().optional(),
 
-  options: z.array(z.string()).optional()
-}).superRefine((field, ctx) => {
-  // 🔥 select must have options
-  if (field.type === "select" && (!field.options || field.options.length === 0)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Options are required for select field"
-    });
-  }
+  variant: z.string().optional(),
+
+  options: z.array(z.string()).optional(),
+
+  config: configSchema.optional()
 });
 
 
+export const formIdentitySchema = z.object({
+  name: z.string().min(1),
+  title: z.string().min(1),
+  timestamp: z.string() // ISO string
+});
+
 //  Create Template DTO
 export const createTemplateSchema = z.object({
-  name: z.string().min(1),
-
   schema: z.object({
+    form_identity: formIdentitySchema,
+
     fields: z.array(formFieldSchema)
       .min(1)
       .refine((fields) => {
-        const names = fields.map(f => f.name);
-        return new Set(names).size === names.length;
+        const ids = fields.map(f => f.id);
+        return new Set(ids).size === ids.length;
       }, {
-        message: "Field names must be unique"
+        message: "Field IDs must be unique"
       })
   })
 });

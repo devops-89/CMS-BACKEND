@@ -10,8 +10,8 @@ const controller=new FormBuilderController();
 router.post("/templates",validate(createTemplateSchema),controller.createTemplate.bind(controller));
 router.get("/templates", controller.getTemplates.bind(controller));
 router.get("/templates/:id",validate(templateParamSchema,"params"),controller.getTemplate.bind(controller));
-
-
+router.put("/templates/:id",validate(templateParamSchema,"params"),validate(createTemplateSchema),controller.updateTemplate.bind(controller));
+router.delete("/templates/:id",validate(templateParamSchema,"params"),controller.deleteTemplate.bind(controller));
 router.post("/submit/:templateId",validate(templateIdParamSchema,"params"),validate(submitFormSchema),controller.submitForm.bind(controller));
 router.get("/submissions/:templateId" ,validate(templateIdParamSchema, "params"),controller.getSubmissions.bind(controller));
 

@@ -1,3 +1,4 @@
+import { partial } from "zod/mini";
 import {AppDataSource} from  "../database/data-source";
 import { FormTemplate } from "@libs/entities/form-template.entity";
 
@@ -25,5 +26,19 @@ export class FormTemplateRepository{
       where: { id }
     });
   }
+
+  // update the template
+  async update(id:string,payload:Partial<FormTemplate>){
+    await this.repo.update({id},payload);
+    return this.findById(id);
+  }
+
+  // Delete the Template
+  async delete(id:string){
+    return this.repo.delete({id});
+  }
+
+   
+  
 }
 

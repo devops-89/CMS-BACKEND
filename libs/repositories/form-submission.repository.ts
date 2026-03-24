@@ -1,6 +1,6 @@
 import { AppDataSource } from "@libs/database/data-source";
-import { FormSubmission } from "@libs/entities/form-submission.entity";
-import { FormTemplate } from "@libs/entities/form-template.entity";
+
+import { FormTemplate,FormSubmission } from "@libs/entities";
 
 export class FormSubmissionRepository{
     private repo=AppDataSource.getRepository(FormSubmission);

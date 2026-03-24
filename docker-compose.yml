@@ -30,16 +30,19 @@ services:
       - .:/app
       - /app/node_modules
 
-  # contest-service:
-  #   build: .
-  #   container_name: contest-service
-  #   command: npm run dev:contest
-  #   ports:
-  #     - "5003:5003"
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - db
+  formbuilder-service:
+    build: .
+    container_name: formbuilder-service
+    command: npm run dev:formbuilder
+    ports:
+      - "5003:5003"
+    env_file:
+      - .env
+    depends_on:
+      - db
+    volumes:
+      - /app/node_modules 
+
 
   db:
     image: postgres:16
