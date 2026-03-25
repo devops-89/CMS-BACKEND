@@ -6,7 +6,7 @@ import { UserRepository } from "@libs/repositories";
 import { AdminProfileRepository } from "@libs/repositories";
 import { JudgeProfileRepository } from "@libs/repositories";
 import { ParticipantProfileRepository } from "@libs/repositories";
-
+import {NotificationService} from "@libs/notifications/notification.service";
 import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
 import { OtpsRepository } from "@libs/repositories/otps.repository";
 
@@ -33,6 +33,8 @@ export class AuthController {
   private participantRepo = new ParticipantProfileRepository();
   private refreshTokenRepo = new RefreshTokenRepository();
   private otpRepo = new OtpsRepository();
+
+  private notificationService=new NotificationService();
 
   /* -------------------------------- REGISTER -------------------------------- */
 
@@ -130,7 +132,7 @@ export class AuthController {
         email,
         password: hashedPassword,
         role: UserRole.PARTICIPANT,
-        status: UserStatus.ACTIVE, 
+        status: UserStatus.ACTIVE,
         firstName,
         lastName,
         phone,
@@ -335,6 +337,9 @@ export class AuthController {
 
       // 📩 TODO: Send via email
       console.log("OTP:", otp);
+      console.log("User Email:", user.email);
+
+      await this.notificationService.sendOtp(user.email, otp, user.firstName);
 
       return res.json({
         message: "OTP sent successfully",
