@@ -5,3 +5,7 @@ export * from "./user.repository";
 export * from "./otps.repository";
 export * from "./form-template.repository";
 export * from "./form-submission.repository";
+export * from "./contest.repository";
+export * from "./participant.repository";
+export * from "./vote.repository";
+export * from "./entry.repository";

@@ -6,3 +6,7 @@ export * from "./otps.entity";
 export * from "./refresh-token.entity";
 export * from "./form-template.entity";
 export * from "./form-submission.entity";
+export * from "./entry.entity";
+export * from "./contest.entity";
+export * from "./participant.entity"
+export * from "./vote.entity"
