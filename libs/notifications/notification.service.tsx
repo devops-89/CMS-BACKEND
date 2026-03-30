@@ -2,6 +2,7 @@ import {EmailChannel} from "./channels/email.channel";
 import {OtpTemplate} from "./templates/otp.template";
 import React from "react";
 
+
 export class NotificationService{
     private email=new EmailChannel();
 

@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
+   "scripts": {
     "email-preview": "npx react-email dev --dir ./libs/notifications/emails",
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register apps/api/src/server.ts",
     "dev:auth": "ts-node-dev -r tsconfig-paths/register apps/auth/src/server.ts",
     "dev:user": "ts-node-dev -r tsconfig-paths/register apps/user/src/server.ts",
     "dev:formbuilder": "ts-node-dev -r tsconfig-paths/register apps/form-builder/src/server.ts",
-    "migration:generate": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json npx typeorm-ts-node-commonjs migration:generate libs/database/migrations/migration -d libs/database/data-source.ts",
-    "migration:run": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json npx typeorm-ts-node-commonjs migration:run -d libs/database/data-source.ts",
-    "migration:revert": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json npx typeorm-ts-node-commonjs migration:revert -d libs/database/data-source.ts"
+    "dev:contestmanagement":"ts-node-dev -r tsconfig-paths/register apps/contest-management/src/server.ts",
+    "migration:generate": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json node -r tsconfig-paths/register node_modules/.bin/typeorm-ts-node-commonjs migration:generate libs/database/migrations/migration -d libs/database/data-source.ts",
+    "migration:run": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json node -r tsconfig-paths/register node_modules/.bin/typeorm-ts-node-commonjs migration:run -d libs/database/data-source.ts",
+    "migration:revert": "cross-env TS_NODE_PROJECT=tsconfig.typeorm.json node -r tsconfig-paths/register node_modules/.bin/typeorm-ts-node-commonjs migration:revert -d libs/database/data-source.ts"
   },
   "keywords": [],
   "author": "",

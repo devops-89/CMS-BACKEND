@@ -16,3 +16,12 @@ export class InternalServerError extends Error{
 
     }
 }
+
+export class ConflictError extends Error {
+  statusCode = 409;
+
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, ConflictError.prototype);
+  }
+}
