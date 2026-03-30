@@ -10,7 +10,9 @@ export class ContestService {
     start_date: string;
     end_date: string;
     available_regions?: string[];
-    form_template_id: string;
+    // form_template_id: string;
+    entry_level_template_id?: string;
+    user_level_template_id?: string;
   }) {
     const contest = this.repo.create({
       ...payload,
@@ -44,38 +46,42 @@ export class ContestService {
     };
   }
 
-async updateContest(
-  id: string,
-  payload: Partial<{
-    name: string;
-    description: string;
-    start_date: string;
-    end_date: string;
-    available_regions: string[];
-    form_template_id: string;
-  }>
-) {
-  const existing = await this.repo.findById(id);
-  if (!existing) throw new NotFoundError("Contest not found");
+  async updateContest(
+    id: string,
+    payload: Partial<{
+      name: string;
+      description: string;
+      start_date: string;
+      end_date: string;
+      available_regions: string[];
+      form_template_id: string;
+      entry_level_template_id?: string;
+      user_level_template_id?: string;
+    }>
+  ) {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundError("Contest not found");
 
-  // build a clean Partial<Contest> with proper Date types
-  // never mix string dates with Date in the same spread
-  const updateData: Partial<Contest> = {};
+    // build a clean Partial<Contest> with proper Date types
+    // never mix string dates with Date in the same spread
+    const updateData: Partial<Contest> = {};
 
-  if (payload.name)              updateData.name = payload.name;
-  if (payload.description)       updateData.description = payload.description;
-  if (payload.available_regions) updateData.available_regions = payload.available_regions;
-  if (payload.form_template_id)  updateData.form_template_id = payload.form_template_id;
-  if (payload.start_date)        updateData.start_date = new Date(payload.start_date);
-  if (payload.end_date)          updateData.end_date = new Date(payload.end_date);
+    if (payload.name) updateData.name = payload.name;
+    if (payload.description) updateData.description = payload.description;
+    if (payload.available_regions) updateData.available_regions = payload.available_regions;
+    if (payload.form_template_id) updateData.form_template_id = payload.form_template_id;
+    if (payload.start_date) updateData.start_date = new Date(payload.start_date);
+    if (payload.end_date) updateData.end_date = new Date(payload.end_date);
+    if (payload.entry_level_template_id) updateData.entry_level_template_id = payload.entry_level_template_id;
+    if (payload.user_level_template_id) updateData.user_level_template_id = payload.user_level_template_id;
 
-  try {
-    await this.repo.update(id, updateData);
-    return await this.repo.findById(id);
-  } catch {
-    throw new InternalServerError("Failed to update contest");
+    try {
+      await this.repo.update(id, updateData);
+      return await this.repo.findById(id);
+    } catch {
+      throw new InternalServerError("Failed to update contest");
+    }
   }
-}
 
   async updateStatus(id: string, status: "draft" | "published" | "offline") {
     const existing = await this.repo.findById(id);

@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
-import {User,RefreshToken,Otp, ParticipantProfile, JudgeProfile,AdminProfile,FormTemplate, FormSubmission, Contest,Entry,Participant,Vote } from "../entities";
+import { User, RefreshToken, Otp, ParticipantProfile, JudgeProfile, AdminProfile, FormTemplate, FormSubmission, Contest, Entry, Participant, Vote } from "../entities";
 
 
 export const AppDataSource = new DataSource({
@@ -11,6 +11,6 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || "launchpad@123",
   database: process.env.DB_NAME || "launchpad_db",
   synchronize: false,
-  entities: [User,RefreshToken,Otp, ParticipantProfile, JudgeProfile,AdminProfile, FormTemplate, FormSubmission, Contest, Entry, Participant, Vote],
+  entities: [User, RefreshToken, Otp, ParticipantProfile, JudgeProfile, AdminProfile, FormTemplate, FormSubmission, Contest, Entry, Participant, Vote],
   migrations: ["libs/database/migrations/*.ts"],
 });

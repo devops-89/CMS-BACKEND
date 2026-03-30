@@ -20,4 +20,8 @@ export class FormSubmissionRepository{
             order:{createdAt:"DESC"}
         })
     }
+
+    update(id: string, data: Record<string, any>) {
+      return this.repo.update(id, { data });
+    }
 }

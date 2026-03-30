@@ -1,4 +1,4 @@
-import {ParticipantRepository} from "@libs/repositories";
+import { ParticipantRepository } from "@libs/repositories";
 import { FormSubmissionRepository } from "@libs/repositories";
 import { FormTemplateRepository } from "@libs/repositories";
 
@@ -16,9 +16,17 @@ export class ParticipantService {
     const contest = await this.contestRepo.findById(contest_id);
     if (!contest) throw new NotFoundError("Contest not found");
 
+    if (!contest.entry_level_template_id) {
+      throw new NotFoundError("Entry level template ID missing");
+    }
+
+    const template = await this.templateRepo.findById(contest.entry_level_template_id);
+
+    if (!template) {
+      throw new NotFoundError("Form template not found");
+    }
     // 2. get the form template linked to this contest
-    const template = await this.templateRepo.findById(contest.form_template_id);
-    if (!template) throw new NotFoundError("Form template not found");
+
 
     // 3. create form submission using the contest's template
     const submission = this.submissionRepo.create(template, formData);
@@ -29,6 +37,7 @@ export class ParticipantService {
       contest_id,
       submission_id: savedSubmission.id,
     });
+    console.log("participant", participant);
 
     try {
       return await this.repo.save(participant);
@@ -38,7 +47,15 @@ export class ParticipantService {
   }
 
   async getParticipants(contest_id: string) {
-    return await this.repo.findByContest(contest_id);
+    const participants = await this.repo.findByContest(contest_id);
+
+    return participants.map((p) => {
+      if (p.submission?.data) {
+        delete p.submission.data.password;
+        delete p.submission.data.confirm_password;
+      }
+      return p;
+    });
   }
 
   async getParticipantById(id: string, contest_id: string) {
@@ -51,6 +68,21 @@ export class ParticipantService {
     const existing = await this.repo.findById(id, contest_id);
     if (!existing) throw new NotFoundError("Participant not found");
     await this.repo.updateStatus(id, status);
+    return await this.repo.findById(id, contest_id);
+  }
+
+  async updateParticipant(id: string, contest_id: string, formData: Record<string, any>) {
+
+    console.log("id", id);
+    console.log("contest_id", contest_id);
+    const existing = await this.repo.findById(id, contest_id);
+    if (!existing) throw new NotFoundError("Participant not found");
+
+    if (!existing.submission_id) {
+      throw new NotFoundError("Submission not found");
+    }
+
+    await this.submissionRepo.update(existing.submission_id, formData);
     return await this.repo.findById(id, contest_id);
   }
 

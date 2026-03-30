@@ -4,7 +4,7 @@ import {
   ManyToOne, OneToMany, JoinColumn,
 } from "typeorm";
 
-import { FormTemplate,Entry , Participant } from "@libs/entities";
+import { FormTemplate, Entry, Participant } from "@libs/entities";
 
 
 
@@ -36,12 +36,26 @@ export class Contest {
   @Column({ type: "simple-array", nullable: true })
   available_regions!: string[];
 
-  @ManyToOne(() => FormTemplate, { nullable: false, onDelete: "RESTRICT", eager: true })
+  @ManyToOne(() => FormTemplate, { nullable: true, onDelete: "RESTRICT", eager: true })
   @JoinColumn({ name: "form_template_id" })
-  formTemplate!: FormTemplate;
+  formTemplate?: FormTemplate;
 
-  @Column()
-  form_template_id!: string;
+  @Column({ nullable: true })
+  form_template_id?: string;
+
+  @ManyToOne(() => FormTemplate, { nullable: true, onDelete: "RESTRICT", eager: true })
+  @JoinColumn({ name: "entry_level_template_id" })
+  entryLevelTemplate?: FormTemplate;
+
+  @Column({ nullable: true })
+  entry_level_template_id?: string;
+
+  @ManyToOne(() => FormTemplate, { nullable: true, onDelete: "RESTRICT", eager: true })
+  @JoinColumn({ name: "user_level_template_id" })
+  userLevelTemplate?: FormTemplate;
+
+  @Column({ nullable: true })
+  user_level_template_id?: string;
 
   @OneToMany(() => Participant, (p) => p.contest)
   participants!: Participant[];

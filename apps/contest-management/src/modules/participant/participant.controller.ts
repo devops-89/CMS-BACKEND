@@ -48,6 +48,19 @@ export class ParticipantController {
     }
   };
 
+  update = async (req: Request<ParticipantParams>, res: Response) => {
+    try {
+      const data = await service.updateParticipant(
+        req.params.pid,
+        req.params.contestId,
+        req.body
+      );
+      return res.status(200).json({ message: "Participant updated", data });
+    } catch (e: any) {
+      return res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
   remove = async (req: Request<ParticipantParams>, res: Response) => {
     try {
       const data = await service.removeParticipant(req.params.pid, req.params.contestId);

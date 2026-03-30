@@ -1,5 +1,5 @@
 import { AppDataSource } from "@libs/database/data-source";
-import {Participant} from "@libs/entities";
+import { Participant } from "@libs/entities";
 
 export class ParticipantRepository {
   private repo = AppDataSource.getRepository(Participant);
@@ -29,6 +29,10 @@ export class ParticipantRepository {
 
   updateStatus(id: string, status: Participant["status"]) {
     return this.repo.update(id, { status });
+  }
+
+  update(id: string, data: Partial<Participant>) {
+    return this.repo.update(id, data);
   }
 
   delete(id: string) {
