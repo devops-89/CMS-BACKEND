@@ -1,8 +1,10 @@
-import { ContestRepository } from "@libs/repositories";
+import { ContestRepository, EntryRepository, ParticipantRepository } from "@libs/repositories";
 import { NotFoundError, InternalServerError, ConflictError } from "@libs/utils/errors.util";
 import { Contest } from "@libs/entities";
 export class ContestService {
   private repo = new ContestRepository();
+  private participantRepo = new ParticipantRepository();
+  private entryRepo = new EntryRepository();
 
    async createContest(payload: {
     name: string;
@@ -37,19 +39,49 @@ export class ContestService {
     return contest;
   }
 
-  async getContestOverview(id: string) {
-    const contest = await this.repo.findById(id);
-    if (!contest) throw new NotFoundError("Contest not found");
+async getContestOverview(id: string) {
+  const contest = await this.repo.findById(id);
+  if (!contest) throw new NotFoundError("Contest not found");
 
-    const stats = await this.repo.getStats(id);
+  const stats = await this.repo.getStats(id);
 
-    return {
-      ...contest,
-      total_entries: parseInt(stats?.total_entries || "0"),
-      needs_moderation: parseInt(stats?.needs_moderation || "0"),
-      total_votes: parseInt(stats?.total_votes || "0"),
-    };
-  }
+  // ✅ participants
+  const participants = await this.participantRepo.findByContest(id);
+
+  const cleanedParticipants = participants.map((p) => {
+    if (p.submission?.data) {
+      delete p.submission.data.password;
+      delete p.submission.data.confirm_password;
+    }
+    return p;
+  });
+
+  // ✅ entries
+  const entries = await this.entryRepo.findByContest(id);
+
+  const cleanedEntries = entries.map((e) => {
+    // optional cleanup
+    return e;
+  });
+
+  return {
+    ...contest,
+
+    // stats
+    total_entries: parseInt(stats?.total_entries || "0"),
+    needs_moderation: parseInt(stats?.needs_moderation || "0"),
+    total_votes: parseInt(stats?.total_votes || "0"),
+
+    // participants
+    participants: cleanedParticipants,
+    total_participants: cleanedParticipants.length,
+
+    // 🔥 NEW
+    entries: cleanedEntries,
+    total_entries_list: cleanedEntries.length,
+  };
+}
+
 
  async updateContest(
     id: string,

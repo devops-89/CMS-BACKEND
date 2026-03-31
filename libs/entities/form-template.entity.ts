@@ -8,18 +8,7 @@ import {
 } from "typeorm";
 import { FormSubmission } from "./form-submission.entity";
 
-// string typing for schema
-// export type FormField={
-//         name:string;
-//         type:"text" | "email" | "number" | "select" | "checkbox" | "date";
-//         label?:string;
-//         required?:boolean;
-//         options?:string[];  // for select
-// }
 
-// export type FormSchema={
-//     fields: FormField[]
-// }
 
 export type FieldConfig = {
   defaultCountry?: string;

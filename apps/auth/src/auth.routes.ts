@@ -2,7 +2,7 @@ import { Router } from "express";
 import { AuthController } from "./auth.controller";
 import { validate } from "@libs/middlewares/validate.middleware";
 
-import { registerSchema, loginSchema, refreshSchema, logoutSchema, forgotPasswordSchema, resetPasswordSchema, registerParticipantSchema } from "@libs/dto/auth.dto";
+import { registerSchema, loginSchema, refreshSchema, logoutSchema, forgotPasswordSchema, resetPasswordSchema, registerParticipantSchema, registerJudgeSchema } from "@libs/dto/auth.dto";
 import { authenticate } from "@libs/middlewares/auth.middleware";
 const router = Router();
 const controller = new AuthController();
@@ -18,6 +18,12 @@ router.post(
   validate(registerParticipantSchema),
   controller.registerParticipant.bind(controller)
 )
+
+router.post(
+  "/register-judge",
+  validate(registerJudgeSchema),
+  controller.registerJudge.bind(controller)
+);
 
 router.post(
   "/login",

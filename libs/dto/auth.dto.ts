@@ -90,6 +90,19 @@ export const registerParticipantSchema = z.object({
 });
 
 
+export const registerJudgeSchema = z.object({
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
+    email: z.string().email(),
+    password: z.string().min(6),
+    phone: z.string().min(1),
+    expertise: z.array(z.string()).optional(), 
+  });
+
+
+
+
+
 export const loginSchema = z.object({
   email: z
     .string()
@@ -151,3 +164,4 @@ export type RefreshDto=z.infer<typeof refreshSchema>;
 export type LogoutDto=z.infer<typeof logoutSchema>;
 export type ForgotPasswordDto=z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordDto=z.infer<typeof resetPasswordSchema>;
+export type RegisterJudgeDto=z.infer<typeof registerJudgeSchema>;

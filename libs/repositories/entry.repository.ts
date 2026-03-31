@@ -15,7 +15,7 @@ export class EntryRepository {
   findByContest(contest_id: string) {
     return this.repo.find({
       where: { contest_id },
-      relations: ["participant", "participant.submission"],
+      relations: ["participant", "submission"],
       order: { created_at: "DESC" },
     });
   }
@@ -23,7 +23,7 @@ export class EntryRepository {
   findById(id: string, contest_id: string) {
     return this.repo.findOne({
       where: { id, contest_id },
-      relations: ["participant", "participant.submission", "votes"],
+      relations: ["participant", "submission", "votes"],
     });
   }
 

@@ -1,21 +1,44 @@
+import {
+  EntryRepository,
+  ContestRepository,
+  FormSubmissionRepository,
+} from "@libs/repositories";
 
-import { EntryRepository, VoteRepository, ContestRepository } from "@libs/repositories";
 import { NotFoundError, InternalServerError } from "@libs/utils/errors.util";
 
 export class EntryService {
   private repo = new EntryRepository();
-  private voteRepo = new VoteRepository();
   private contestRepo = new ContestRepository();
+  private submissionRepo = new FormSubmissionRepository();
 
-  async createEntry(contest_id: string, payload: {
-    participant_id: string;
-    title: string;
-    thumbnail_url?: string;
-  }) {
+  async createEntry(
+    contest_id: string,
+    payload: {
+      participant_id: string;
+      data: Record<string, any>;
+    }
+  ) {
     const contest = await this.contestRepo.findById(contest_id);
     if (!contest) throw new NotFoundError("Contest not found");
 
-    const entry = this.repo.create({ contest_id, ...payload });
+    if (!contest.entryLevelTemplate) {
+      throw new NotFoundError("Entry level template not configured");
+    }
+
+    // ✅ Step 1: create submission
+    const submission = this.submissionRepo.create(
+      contest.entryLevelTemplate,
+      payload.data
+    );
+
+    const savedSubmission = await this.submissionRepo.save(submission);
+
+    // ✅ Step 2: create entry
+    const entry = this.repo.create({
+      contest_id,
+      participant_id: payload.participant_id,
+      submission_id: savedSubmission.id,
+    });
 
     try {
       return await this.repo.save(entry);
@@ -34,9 +57,14 @@ export class EntryService {
     return entry;
   }
 
-  async updateStatus(id: string, contest_id: string, status: "pending" | "approved" | "rejected") {
+  async updateStatus(
+    id: string,
+    contest_id: string,
+    status: "pending" | "approved" | "rejected"
+  ) {
     const existing = await this.repo.findById(id, contest_id);
     if (!existing) throw new NotFoundError("Entry not found");
+
     await this.repo.updateStatus(id, status);
     return await this.repo.findById(id, contest_id);
   }
@@ -46,7 +74,8 @@ export class EntryService {
     if (!existing) throw new NotFoundError("Entry not found");
 
     const result = await this.repo.delete(id);
-    if (result.affected === 0) throw new InternalServerError("Delete failed");
+    if (result.affected === 0)
+      throw new InternalServerError("Delete failed");
 
     return { message: "Entry deleted successfully" };
   }

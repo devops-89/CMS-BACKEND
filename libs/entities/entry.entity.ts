@@ -1,11 +1,11 @@
-// entry.entity.ts
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn,
-  ManyToOne, OneToMany, JoinColumn, Index,
+  ManyToOne, OneToMany, OneToOne,
+  JoinColumn, Index,
 } from "typeorm";
 
-import { Contest, Participant, Vote } from "@libs/entities";
+import { Contest, Participant, Vote, FormSubmission } from "@libs/entities";
 
 @Entity("entries")
 export class Entry {
@@ -27,12 +27,13 @@ export class Entry {
   @Column()
   participant_id!: string;
 
-  @Column({ type: "varchar" })
-  title!: string;
 
-  // explicitly tell TypeORM it's a nullable varchar — never let it infer from string | null
-  @Column({ type: "varchar", nullable: true, default: null })
-  thumbnail_url!: string | null;
+  @OneToOne(() => FormSubmission, { onDelete: "CASCADE", eager: true })
+  @JoinColumn({ name: "submission_id" })
+  submission!: FormSubmission;
+
+  @Column()
+  submission_id!: string;
 
   @Column({ type: "float", default: 0 })
   score!: number;

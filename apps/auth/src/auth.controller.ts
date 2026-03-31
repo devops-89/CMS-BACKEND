@@ -18,13 +18,14 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   RegisterParticipantDto,
+  RegisterJudgeDto,
 } from "@libs/dto/auth.dto";
 
 import {
   generateAccessToken,
   generateRefreshToken,
 } from "@libs/utils/jwt.util";
-import { ParticipantProfile, User, UserRole, UserStatus } from "@libs/entities";
+import { JudgeProfile, ParticipantProfile, User, UserRole, UserStatus } from "@libs/entities";
 
 export class AuthController {
   private userRepo = new UserRepository();
@@ -91,6 +92,82 @@ export class AuthController {
       });
     }
   }
+
+  async registerJudge(
+  req: Request<{}, {}, RegisterJudgeDto>,
+  res: Response
+) {
+  const queryRunner = AppDataSource.createQueryRunner();
+
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+      expertise,
+    } = req.body;
+
+    // ✅ Check existing user
+    const existingUser = await queryRunner.manager.findOne(User, {
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Email already in use",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // ✅ Create User (Judge role + Pending status)
+    const user = queryRunner.manager.create(User, {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password: hashedPassword,
+      role: UserRole.JUDGE,
+      status: UserStatus.PENDING, // 👈 important
+    });
+
+    await queryRunner.manager.save(user);
+
+    // ✅ Create Judge Profile
+    const judgeProfile = queryRunner.manager.create(JudgeProfile, {
+      user,
+      expertise: expertise || null,
+    });
+
+    await queryRunner.manager.save(judgeProfile);
+
+    await queryRunner.commitTransaction();
+
+    return res.status(201).json({
+      message: "Judge registered successfully",
+      data: {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        judgeProfile,
+      },
+    });
+  } catch (error: any) {
+    await queryRunner.rollbackTransaction();
+
+    return res.status(500).json({
+      message: "Judge registration failed",
+      error: error.message,
+    });
+  } finally {
+    await queryRunner.release();
+  }
+}
 
   async registerParticipant(
     req: Request<{}, {}, RegisterParticipantDto>,
