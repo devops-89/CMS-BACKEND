@@ -3,21 +3,18 @@ import {
   CreateDateColumn, UpdateDateColumn,
   ManyToOne, OneToMany, JoinColumn,
 } from "typeorm";
-
 import { FormTemplate, Entry, Participant } from "@libs/entities";
-
-
-
+import { ContestJudge } from "@libs/entities/contest-judge.entity";
 
 @Entity("contests")
 export class Contest {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column()
-  name!: string;
+ @Column({ unique: true })
+ name!: string;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: "text", nullable: true, default: null })
   description!: string | null;
 
   @Column({ type: "timestamp" })
@@ -28,10 +25,10 @@ export class Contest {
 
   @Column({
     type: "enum",
-    enum: ["draft", "published", "offline"],
-    default: "draft",
+    enum: ["Draft", "Published", "Offline"],
+    default: "Draft",
   })
-  status!: "draft" | "published" | "offline";
+  status!: "Draft" | "Published" | "Offline";
 
   @Column({ type: "simple-array", nullable: true })
   available_regions!: string[];
@@ -62,6 +59,9 @@ export class Contest {
 
   @OneToMany(() => Entry, (e) => e.contest)
   entries!: Entry[];
+
+  @OneToMany(() => ContestJudge, (cj) => cj.contest)
+  judges!: ContestJudge[];
 
   @CreateDateColumn()
   created_at!: Date;

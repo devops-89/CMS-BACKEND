@@ -9,4 +9,5 @@ export * from "./form-submission.entity";
 export * from "./entry.entity";
 export * from "./contest.entity";
 export * from "./participant.entity"
-export * from "./vote.entity"
+export * from "./vote.entity";
+export * from "./contest-judge.entity";

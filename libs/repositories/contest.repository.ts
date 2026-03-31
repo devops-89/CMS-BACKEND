@@ -12,6 +12,10 @@ export class ContestRepository {
     return this.repo.save(contest);
   }
 
+  findByName(name: string) {
+  return this.repo.findOne({ where: { name } });
+}
+
   findAll(status?: string, search?: string) {
     const qb = this.repo.createQueryBuilder("contest")
       .leftJoinAndSelect("contest.formTemplate", "formTemplate")

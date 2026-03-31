@@ -1,23 +1,25 @@
-// libs/entities/judge-profile.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from "typeorm";
-import { User } from "./user.entity";
+import {
+  Entity, PrimaryGeneratedColumn, Column,
+  OneToOne, OneToMany, JoinColumn, CreateDateColumn,
+} from "typeorm";
 
-@Entity()
+import {User, ContestJudge} from "@libs/entities";
+
+
+
+@Entity("judge_profiles")
 export class JudgeProfile {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @OneToOne(() => User, (user) => user.judgeProfile, {
-    onDelete: "CASCADE",
-  })
+  // OneToOne with User — judge's account
+  @OneToOne(() => User, (user) => user.judgeProfile, { onDelete: "CASCADE" })
   @JoinColumn()
   user!: User;
 
-  @Column({ nullable: true })
-  judgeLicense?: string;
-
-  @Column({ nullable: true })
-  specialization?: string;
+  // expertise areas e.g. ["AI", "Robotics", "ML"]
+  @Column({ type: "simple-array", nullable: true, default: null })
+  expertise!: string[] | null;
 
   @Column({ default: true })
   isActive!: boolean;
@@ -25,6 +27,10 @@ export class JudgeProfile {
   @Column({ type: "int", default: 0 })
   totalEvaluations!: number;
 
-  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  // one judge → many contest assignments
+  @OneToMany(() => ContestJudge, (cj) => cj.judgeProfile)
+  contestAssignments!: ContestJudge[];
+
+  @CreateDateColumn()
   createdAt!: Date;
 }
