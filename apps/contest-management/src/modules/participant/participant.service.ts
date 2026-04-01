@@ -16,11 +16,11 @@ export class ParticipantService {
     const contest = await this.contestRepo.findById(contest_id);
     if (!contest) throw new NotFoundError("Contest not found");
 
-    if (!contest.entry_level_template_id) {
-      throw new NotFoundError("Entry level template ID missing");
-    }
+    if (!contest.user_level_template_id) {
+  throw new NotFoundError("User level template ID missing");
+}
 
-    const template = await this.templateRepo.findById(contest.entry_level_template_id);
+const template = await this.templateRepo.findById(contest.user_level_template_id);
 
     if (!template) {
       throw new NotFoundError("Form template not found");
