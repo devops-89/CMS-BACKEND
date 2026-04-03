@@ -13,6 +13,7 @@ import {
   getUsersQueryDto,
   
   updateAvatarDto,
+  updateUserStatusDto,
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
 
@@ -43,6 +44,36 @@ export class UserController {
       });
     }
   }
+
+// Update the User Status
+  async updateUserStatus(
+  req: AuthRequest<updateUserStatusDto>,
+  res: Response
+) {
+  try {
+    const { id, status } = req.body;
+
+    const existing = await this.userRepo.getUserById(id);
+    if (!existing) {
+      return res.status(404).json({
+        message: "User Not Found!",
+      });
+    }
+
+    const updated = await this.userRepo.updateUserStatus(id, status);
+
+    return res.status(200).json({
+      message: "User status updated successfully",
+      data: updated,
+    });
+
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Failed to update user status!",
+      error: error.message,
+    });
+  }
+}
 
   // get all users with role filter
  async getUsers(

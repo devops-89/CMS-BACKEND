@@ -69,6 +69,27 @@ export class EntryService {
     return await this.repo.findById(id, contest_id);
   }
 
+  async updateEntry(
+  id: string,
+  contest_id: string,
+  formData: Record<string, any>
+) {
+  //  check entry exists
+  const existing = await this.repo.findById(id, contest_id);
+  if (!existing) throw new NotFoundError("Entry not found");
+
+  //  ensure submission exists
+  if (!existing.submission_id) {
+    throw new NotFoundError("Submission not found");
+  }
+
+  //  update submission data
+  await this.submissionRepo.update(existing.submission_id, formData);
+
+  //  return updated entry
+  return await this.repo.findById(id, contest_id);
+}
+
   async deleteEntry(id: string, contest_id: string) {
     const existing = await this.repo.findById(id, contest_id);
     if (!existing) throw new NotFoundError("Entry not found");

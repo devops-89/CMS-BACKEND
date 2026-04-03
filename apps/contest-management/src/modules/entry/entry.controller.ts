@@ -47,6 +47,19 @@ export class EntryController {
     }
   };
 
+  update = async (req: Request<EntryParams>, res: Response) => {
+  try {
+    const data = await service.updateEntry(
+      req.params.eid,
+      req.params.contestId,
+      req.body
+    );
+    return res.status(200).json({ message: "Entry updated", data });
+  } catch (e: any) {
+    return res.status(e.statusCode || 400).json({ message: e.message });
+  }
+};
+
   delete = async (req: Request<EntryParams>, res: Response) => {
     try {
       const data = await service.deleteEntry(req.params.eid, req.params.contestId);

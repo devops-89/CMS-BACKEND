@@ -4,10 +4,10 @@ import authRoutes from "./auth.routes";
 
 const app = express();
 
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+// app.use(cors({
+//   origin: true,
+//   credentials: true
+// }));
 
 
 app.use(express.json());

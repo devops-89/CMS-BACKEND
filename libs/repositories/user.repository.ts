@@ -1,5 +1,5 @@
 import { AppDataSource } from "@libs/database/data-source";
-import { User, UserRole } from "@libs/entities";
+import { User, UserRole, UserStatus } from "@libs/entities";
 import { Repository } from "typeorm";
 
 export class UserRepository {
@@ -51,6 +51,11 @@ export class UserRepository {
 
     return user;
   }
+
+  async updateUserStatus(userId: string, status: UserStatus) {
+  await this.repo.update(userId, { status });
+  return this.getUserById(userId);
+}
 
   async deleteUser(id: string): Promise<boolean> {
     const result = await this.repo.delete(id);

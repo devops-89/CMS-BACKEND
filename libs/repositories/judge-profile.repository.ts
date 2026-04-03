@@ -1,5 +1,5 @@
 import { AppDataSource } from "@libs/database/data-source";
-import { JudgeProfile } from "@libs/entities";
+import { JudgeProfile, UserRole } from "@libs/entities";
 import { Repository } from "typeorm";
 
 export class JudgeProfileRepository {
@@ -14,16 +14,19 @@ export class JudgeProfileRepository {
     return this.repo.save(profile);
   }
 
-  async findByUserId(userId: string) {
-    return this.repo.findOne({ 
-      where: { user: { id: userId } }, 
-      relations: ["user"] 
-    });
-  }
+async findByUserId(userId: string) {
+  return this.repo.findOne({
+    where: {
+      user: {
+        id: userId,
+        role: UserRole.JUDGE, 
+      },
+    },
+    relations: ["user"],
+  });
+}
 
-  // async updateJudgeLicense(userId: string, license: string) {
-  //   return this.repo.update({ user: { id: userId } }, { judgeLicense: license });
-  // }
+ 
 
   async updateJudgeProfile(userId:string,data:Partial<JudgeProfile>){
     this.repo.update({user:{id:userId}},data);

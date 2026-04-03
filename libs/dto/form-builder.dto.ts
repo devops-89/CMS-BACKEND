@@ -7,9 +7,18 @@ const configSchema = z.object({
   disablePast: z.boolean().optional(),
   disableFuture: z.boolean().optional(),
   min: z.number().optional(),
-  max: z.number().optional()
-}).partial();
+  max: z.number().optional(),
 
+  //  REQUIRED FOR YOUR ENGINE
+  linkedTemplateId: z.string().uuid().optional(),
+  isInline: z.boolean().optional(),
+
+  enableBranching: z.boolean().optional(),
+
+  // ✅ FIXED
+  routing: z.record(z.string(), z.string()).optional()
+
+}).passthrough();
 //  Field Schema
 export const formFieldSchema = z.object({
   id: z.string(),

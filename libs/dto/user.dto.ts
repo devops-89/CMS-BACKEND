@@ -1,4 +1,4 @@
-import { UserRole } from "@libs/entities";
+import { UserRole, UserStatus } from "@libs/entities";
 import {z} from "zod";
 
 
@@ -17,6 +17,11 @@ export const getUsersQuerySchema=z.object({
     limit:z.coerce.number().default(10)
 })
 
+export const updateUserStatusSchema = z.object({
+  id: z.string(),
+  status: z.nativeEnum(UserStatus)
+});
+
 export const deleteUserByIdSchema=z.object({
     id:z.string()
 })
@@ -28,3 +33,4 @@ export type updateAvatarDto=z.infer<typeof updateAvatarSchema>;
 export type getUsersQueryDto=z.infer<typeof getUsersQuerySchema>;
 export type getUserByIdDto=z.infer<typeof getUserByIdSchema>;
 export type deleteUserByIdDto=z.infer<typeof deleteUserByIdSchema>;
+export type updateUserStatusDto=z.infer<typeof updateUserStatusSchema>;
