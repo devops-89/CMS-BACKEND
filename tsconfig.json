@@ -6,6 +6,7 @@
     "jsx": "react-jsx",
     "rootDir": ".",
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@libs/*": ["libs/*"]
     },
