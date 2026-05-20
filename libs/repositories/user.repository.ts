@@ -45,7 +45,7 @@ export class UserRepository {
     if (user.role === "participant") {
       return this.repo.findOne({
         where: { id },
-        relations: ["participantProfile"],
+        relations: ["participantProfile", "participantProfile.submission"],
       });
     }
 
@@ -92,7 +92,8 @@ export class UserRepository {
 
     qb.leftJoinAndSelect("user.adminProfile", "adminProfile")
       .leftJoinAndSelect("user.judgeProfile", "judgeProfile")
-      .leftJoinAndSelect("user.participantProfile", "participantProfile");
+      .leftJoinAndSelect("user.participantProfile", "participantProfile")
+      .leftJoinAndSelect("participantProfile.submission", "submission");
 
     qb.skip((page - 1) * limit);
     qb.take(limit);

@@ -1,6 +1,7 @@
 // libs/entities/participant-profile.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, ManyToOne } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { User } from "./user.entity";
+import { FormSubmission } from "./form-submission.entity";
 
 
 @Entity("participant_profiles")
@@ -26,6 +27,13 @@ export class ParticipantProfile {
   @Column()
   grade!: string; // grade
 
-  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @OneToOne(() => FormSubmission, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "submission_id" })
+  submission?: FormSubmission;
+
+  @Column({ nullable: true })
+  submission_id?: string;
+
+  @CreateDateColumn()
   createdAt!: Date;
 }

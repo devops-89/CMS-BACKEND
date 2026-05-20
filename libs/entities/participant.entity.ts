@@ -4,7 +4,7 @@ import {
   OneToMany, JoinColumn, Index,
 } from "typeorm";
 
-import {Entry, FormSubmission,Contest } from "@libs/entities";
+import { Entry, FormSubmission, Contest, User } from "@libs/entities";
 
 @Entity("participants")
 export class Participant {
@@ -26,6 +26,18 @@ export class Participant {
 
   @Column()
   submission_id!: string;
+
+  @ManyToOne(() => User, (u) => u.participants, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'user_id' })
+  user?: User;
+
+  @Column({ nullable: true })
+  @Index()
+  user_id?: string;
+
 
   @Column({
     type: "enum",
