@@ -44,9 +44,9 @@ export class ContestJudgeService {
     const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
 
     if (payload.entry_ids && Array.isArray(payload.entry_ids)) {
+      // 1. Check for duplicates first
       for (const entryId of payload.entry_ids) {
-        // Avoid duplicate assignments
-        let assignment = await entryAssignmentRepo.findOne({
+        const existingAssignment = await entryAssignmentRepo.findOne({
           where: {
             contest_id,
             judge_id: payload.judge_id,
@@ -54,18 +54,24 @@ export class ContestJudgeService {
           },
         });
 
-        if (!assignment) {
-          assignment = entryAssignmentRepo.create({
-            contest_id,
-            judge_id: payload.judge_id,
-            entry_id: entryId,
-            status: EntryAssignmentStatus.PENDING,
-          });
-          await entryAssignmentRepo.save(assignment);
+        if (existingAssignment) {
+          throw new ConflictError("This entries already assigned to this judge");
         }
+      }
+
+      // 2. Create assignments since none are duplicates
+      for (const entryId of payload.entry_ids) {
+        const assignment = entryAssignmentRepo.create({
+          contest_id,
+          judge_id: payload.judge_id,
+          entry_id: entryId,
+          status: EntryAssignmentStatus.PENDING,
+        });
+        await entryAssignmentRepo.save(assignment);
         entryAssignments.push(assignment);
       }
     }
+
 
     return {
       contestJudge,
