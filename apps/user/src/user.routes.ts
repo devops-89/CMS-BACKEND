@@ -5,7 +5,7 @@ import { validate } from "@libs/middlewares/validate.middleware";
 import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
 
-import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema } from "@libs/dto/user.dto";
+import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema } from "@libs/dto/user.dto";
 
 const router=Router();
 
@@ -31,6 +31,15 @@ router.get("/all",authenticate,authorize(UserRole.ADMIN), validate(getUsersQuery
 // get user by id
 router.get("/:id", authenticate,authorize(UserRole.ADMIN), validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
 
+// update user details by id
+router.put(
+  "/:id",
+  authenticate,
+  authorize(UserRole.ADMIN),
+  validate(getUserByIdSchema, "params"),
+  validate(updateUserSchema, "body"),
+  controller.updateUserDetails.bind(controller)
+);
 
 // delete user by id
 router.delete("/:id", authenticate, authorize(UserRole.ADMIN), validate(deleteUserByIdSchema, "params"), controller.deleteUserById.bind(controller));

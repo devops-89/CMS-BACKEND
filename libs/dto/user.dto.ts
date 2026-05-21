@@ -34,3 +34,12 @@ export type getUsersQueryDto=z.infer<typeof getUsersQuerySchema>;
 export type getUserByIdDto=z.infer<typeof getUserByIdSchema>;
 export type deleteUserByIdDto=z.infer<typeof deleteUserByIdSchema>;
 export type updateUserStatusDto=z.infer<typeof updateUserStatusSchema>;
+
+export const updateUserSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  phone: z.string().optional(),
+  avatarUrl: z.string().optional(),
+});
+
+export type updateUserDto = z.infer<typeof updateUserSchema>;

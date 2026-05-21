@@ -88,6 +88,13 @@ export class UserRepository {
     return this.getUserById(userId);
   }
 
+  async updateUser(userId: string, data: Partial<User>) {
+    await this.repo.update(userId, data);
+
+    return this.getUserById(userId);
+  }
+
+
   // get all users, and filter also for role
   async getUsers(filters: { role?: UserRole; page?: number; limit?: number }) {
     const { role, page = 1, limit = 10 } = filters;
