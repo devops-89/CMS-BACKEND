@@ -178,4 +178,68 @@ async getContestOverview(id: string) {
 
     return await this.votingPeriodRepo.save(votingPeriod);
   }
+
+  async getVotingPeriods(contestId: string) {
+    const contest = await this.repo.findById(contestId);
+    if (!contest) throw new NotFoundError("Contest not found");
+
+    return await this.votingPeriodRepo.findByContestId(contestId);
+  }
+
+  async getVotingPeriodDetail(id: string) {
+    const votingPeriod = await this.votingPeriodRepo.findById(id);
+    if (!votingPeriod) throw new NotFoundError("Voting period not found");
+    return votingPeriod;
+  }
+
+  async updateVotingPeriod(
+    id: string,
+    payload: Partial<{
+      voting_type: VotingType;
+      start_date: string;
+      end_date: string;
+      is_active: boolean;
+    }>
+  ) {
+    const existing = await this.votingPeriodRepo.findById(id);
+    if (!existing) throw new NotFoundError("Voting period not found");
+
+    const updateData: Partial<VotingPeriod> = {};
+
+    if (payload.voting_type) {
+      updateData.voting_type = payload.voting_type;
+    }
+
+    if (payload.is_active !== undefined) {
+      updateData.is_active = payload.is_active;
+    }
+
+    const start = payload.start_date ? new Date(payload.start_date) : existing.start_date;
+    const end = payload.end_date ? new Date(payload.end_date) : existing.end_date;
+
+    if (payload.start_date) {
+      if (isNaN(start.getTime())) {
+        throw new ConflictError("Invalid start_date format");
+      }
+      updateData.start_date = start;
+    }
+
+    if (payload.end_date) {
+      if (isNaN(end.getTime())) {
+        throw new ConflictError("Invalid end_date format");
+      }
+      updateData.end_date = end;
+    }
+
+    if (end <= start) {
+      throw new ConflictError("end_date must be after start_date");
+    }
+
+    try {
+      await this.votingPeriodRepo.update(id, updateData);
+      return await this.votingPeriodRepo.findById(id);
+    } catch {
+      throw new InternalServerError("Failed to update voting period");
+    }
+  }
 }

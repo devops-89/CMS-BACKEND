@@ -23,7 +23,12 @@ export class VotingPeriodRepository {
     });
   }
 
+  update(id: string, data: Partial<VotingPeriod>) {
+    return this.repo.update(id, data);
+  }
+
   delete(id: string) {
     return this.repo.delete(id);
   }
 }
+
