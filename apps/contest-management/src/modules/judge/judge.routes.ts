@@ -6,6 +6,7 @@ const controller = new ContestJudgeController();
 
 router.get("/", controller.getAll.bind(controller));
 router.post("/", controller.assign.bind(controller));
+router.patch("/assignments", controller.editAssignments.bind(controller));
 router.patch("/:jid/status", controller.updateStatus.bind(controller));
 router.delete("/:jid", controller.remove.bind(controller));
 
