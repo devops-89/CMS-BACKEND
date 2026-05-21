@@ -7,6 +7,7 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     Index,
+    DeleteDateColumn,
 } from "typeorm";
 
 import { Entry } from "./entry.entity";
@@ -122,4 +123,7 @@ export class EntryAssignment {
      */
     @UpdateDateColumn()
     updated_at!: Date;
+
+    @DeleteDateColumn()
+    deleted_at!: Date | null;
 }
