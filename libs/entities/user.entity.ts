@@ -4,6 +4,7 @@ import { AdminProfile } from "./admin-profile.entity";
 import { JudgeProfile } from "./judge-profile.entity";
 import { ParticipantProfile } from "./participant-profile.entity";
 import { Participant } from "./participant.entity";
+import { EntryAssignment } from "./entry-assignment.entity";
 
 export enum UserRole {
   ADMIN = "admin",
@@ -74,4 +75,11 @@ export class User {
 
   @OneToMany(() => Participant, (participant) => participant.user)
   participants?: Participant[];
+
+  @OneToMany(
+    () => EntryAssignment,
+    (assignment) => assignment.judge,
+  )
+  entryAssignments!: EntryAssignment[];
+
 }
