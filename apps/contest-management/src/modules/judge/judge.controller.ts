@@ -16,6 +16,16 @@ export class ContestJudgeController {
     }
   };
 
+  editAssignments = async (req: Request<ContestParams>, res: Response) => {
+    try {
+      const data = await service.editAssignments(req.params.contestId, req.body);
+      return res.status(200).json({ message: "Judge assignments updated successfully", data });
+    } catch (e: any) {
+      return res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
+
   getAll = async (req: Request<ContestParams>, res: Response) => {
     try {
       const data = await service.getJudges(req.params.contestId);
