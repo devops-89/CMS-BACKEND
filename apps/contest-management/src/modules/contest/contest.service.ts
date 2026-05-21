@@ -1,10 +1,11 @@
-import { ContestRepository, EntryRepository, ParticipantRepository } from "@libs/repositories";
+import { ContestRepository, EntryRepository, ParticipantRepository, VotingPeriodRepository } from "@libs/repositories";
 import { NotFoundError, InternalServerError, ConflictError } from "@libs/utils/errors.util";
-import { Contest } from "@libs/entities";
+import { Contest, VotingPeriod, VotingType } from "@libs/entities";
 export class ContestService {
   private repo = new ContestRepository();
   private participantRepo = new ParticipantRepository();
   private entryRepo = new EntryRepository();
+  private votingPeriodRepo = new VotingPeriodRepository();
 
    async createContest(payload: {
     name: string;
@@ -141,5 +142,40 @@ async getContestOverview(id: string) {
     if (result.affected === 0) throw new InternalServerError("Delete failed");
 
     return { message: "Contest deleted successfully" };
+  }
+
+  async createVotingPeriod(
+    contestId: string,
+    payload: {
+      voting_type: VotingType;
+      start_date: string;
+      end_date: string;
+    }
+  ) {
+    const contest = await this.repo.findById(contestId);
+    if (!contest) throw new NotFoundError("Contest not found");
+
+    const start = new Date(payload.start_date);
+    const end = new Date(payload.end_date);
+
+    if (isNaN(start.getTime())) {
+      throw new ConflictError("Invalid start_date format");
+    }
+    if (isNaN(end.getTime())) {
+      throw new ConflictError("Invalid end_date format");
+    }
+    if (end <= start) {
+      throw new ConflictError("end_date must be after start_date");
+    }
+
+    const votingPeriod = this.votingPeriodRepo.create({
+      contest_id: contestId,
+      voting_type: payload.voting_type,
+      start_date: start,
+      end_date: end,
+      is_active: true,
+    });
+
+    return await this.votingPeriodRepo.save(votingPeriod);
   }
 }

@@ -5,14 +5,15 @@ import {
 } from "typeorm";
 import { FormTemplate, Entry, Participant } from "@libs/entities";
 import { ContestJudge } from "@libs/entities/contest-judge.entity";
+import { VotingPeriod } from "./voting-period";
 
 @Entity("contests")
 export class Contest {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
- @Column({ unique: true })
- name!: string;
+  @Column({ unique: true })
+  name!: string;
 
   @Column({ type: "text", nullable: true, default: null })
   description!: string | null;
@@ -62,6 +63,12 @@ export class Contest {
 
   @OneToMany(() => ContestJudge, (cj) => cj.contest)
   judges!: ContestJudge[];
+
+  @OneToMany(
+    () => VotingPeriod,
+    (votingPeriod) => votingPeriod.contest,
+  )
+  votingPeriods!: VotingPeriod[];
 
   @CreateDateColumn()
   created_at!: Date;
