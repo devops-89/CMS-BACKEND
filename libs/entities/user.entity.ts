@@ -1,8 +1,9 @@
 // libs/entities/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany } from "typeorm";
 import { AdminProfile } from "./admin-profile.entity";
 import { JudgeProfile } from "./judge-profile.entity";
 import { ParticipantProfile } from "./participant-profile.entity";
+import { Participant } from "./participant.entity";
 
 export enum UserRole {
   ADMIN = "admin",
@@ -70,4 +71,7 @@ export class User {
 
   @OneToOne(() => ParticipantProfile, (participant) => participant.user)
   participantProfile?: ParticipantProfile;
+
+  @OneToMany(() => Participant, (participant) => participant.user)
+  participants?: Participant[];
 }

@@ -14,7 +14,7 @@ export class ParticipantProfileRepository {
   async findByUserId(userId: string) {
     return this.repo.findOne({ 
       where: { user: { id: userId } }, 
-      relations: ["user"] 
+      relations: ["user", "submission"] 
     });
   }
 

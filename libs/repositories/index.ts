@@ -9,3 +9,4 @@ export * from "./contest.repository";
 export * from "./participant.repository";
 export * from "./vote.repository";
 export * from "./entry.repository";
+export * from "./voting-period.repository";

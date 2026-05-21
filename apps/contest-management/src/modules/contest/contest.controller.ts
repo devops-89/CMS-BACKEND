@@ -60,4 +60,42 @@ export class ContestController {
       return res.status(e.statusCode || 500).json({ message: e.message });
     }
   };
+
+  createVotingPeriod = async (req: Request<ContestParams>, res: Response) => {
+    try {
+      const data = await service.createVotingPeriod(req.params.id, req.body);
+      return res.status(201).json({ message: "Voting period created", data });
+    } catch (e: any) {
+      return res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
+  getVotingPeriods = async (req: Request<ContestParams>, res: Response) => {
+    try {
+      const data = await service.getVotingPeriods(req.params.id);
+      return res.status(200).json({ message: "Voting periods fetched", data });
+    } catch (e: any) {
+      return res.status(e.statusCode || 500).json({ message: e.message });
+    }
+  };
+
+  getVotingPeriodDetail = async (req: Request<{ votingPeriodId: string }>, res: Response) => {
+    try {
+      const data = await service.getVotingPeriodDetail(req.params.votingPeriodId);
+      return res.status(200).json({ message: "Voting period details fetched", data });
+    } catch (e: any) {
+      return res.status(e.statusCode || 404).json({ message: e.message });
+    }
+  };
+
+  updateVotingPeriod = async (req: Request<{ votingPeriodId: string }>, res: Response) => {
+    try {
+      const data = await service.updateVotingPeriod(req.params.votingPeriodId, req.body);
+      return res.status(200).json({ message: "Voting period updated", data });
+    } catch (e: any) {
+      return res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
+
 }
