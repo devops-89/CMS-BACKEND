@@ -1,32 +1,77 @@
 import { ContestJudgeRepository } from "@libs/repositories/contest-judge.repository";
 import { ContestRepository, JudgeProfileRepository } from "@libs/repositories";
 import { NotFoundError, ConflictError, InternalServerError } from "@libs/utils/errors.util";
+import { AppDataSource } from "@libs/database/data-source";
+import { EntryAssignment, EntryAssignmentStatus, UserStatus } from "@libs/entities";
 
 export class ContestJudgeService {
   private repo = new ContestJudgeRepository();
   private contestRepo = new ContestRepository();
   private judgeRepo = new JudgeProfileRepository();
 
-async assignJudge(contest_id: string, payload: { judge_id: string }) {
-  const contest = await this.contestRepo.findById(contest_id);
-  if (!contest) throw new NotFoundError("Contest not found");
+  async assignJudge(contest_id: string, payload: { judge_id: string; entry_ids?: string[] }) {
+    const contest = await this.contestRepo.findById(contest_id);
+    if (!contest) throw new NotFoundError("Contest not found");
 
-  // get judge profile from user id
-  const judgeProfile = await this.judgeRepo.findByUserId(payload.judge_id);
-  if (!judgeProfile) throw new NotFoundError("Judge not found");
+    // get judge profile from user id
+    const judgeProfile = await this.judgeRepo.findByUserId(payload.judge_id);
+    if (!judgeProfile || !judgeProfile.user) {
+      throw new NotFoundError("Judge not found");
+    }
 
-  //  check duplicate using PROFILE ID
-  const existing = await this.repo.findOne(contest_id, judgeProfile.id);
-  if (existing) throw new ConflictError("Judge already assigned");
+    // Validate judge is active
+    if (judgeProfile.user.status !== UserStatus.ACTIVE) {
+      throw new ConflictError("Judge status must be Active");
+    }
 
-  //  use profile id here
-  const judge = this.repo.create({
-    contest_id,
-    judge_profile_id: judgeProfile.id,
-  });
+    if (!judgeProfile.isActive) {
+      throw new ConflictError("Judge profile is inactive");
+    }
 
-  return await this.repo.save(judge);
-}
+
+    // check if already assigned to the contest
+    let contestJudge = await this.repo.findOne(contest_id, judgeProfile.id);
+    if (!contestJudge) {
+      contestJudge = this.repo.create({
+        contest_id,
+        judge_profile_id: judgeProfile.id,
+        status: "active",
+      });
+      contestJudge = await this.repo.save(contestJudge);
+    }
+
+    const entryAssignments: EntryAssignment[] = [];
+    const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
+
+    if (payload.entry_ids && Array.isArray(payload.entry_ids)) {
+      for (const entryId of payload.entry_ids) {
+        // Avoid duplicate assignments
+        let assignment = await entryAssignmentRepo.findOne({
+          where: {
+            contest_id,
+            judge_id: payload.judge_id,
+            entry_id: entryId,
+          },
+        });
+
+        if (!assignment) {
+          assignment = entryAssignmentRepo.create({
+            contest_id,
+            judge_id: payload.judge_id,
+            entry_id: entryId,
+            status: EntryAssignmentStatus.PENDING,
+          });
+          await entryAssignmentRepo.save(assignment);
+        }
+        entryAssignments.push(assignment);
+      }
+    }
+
+    return {
+      contestJudge,
+      assignments: entryAssignments,
+    };
+  }
 
   async getJudges(contest_id: string) {
     const contest = await this.contestRepo.findById(contest_id);

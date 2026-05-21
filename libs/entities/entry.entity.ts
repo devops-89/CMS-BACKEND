@@ -6,6 +6,7 @@ import {
 } from "typeorm";
 
 import { Contest, Participant, Vote, FormSubmission } from "@libs/entities";
+import { EntryAssignment } from "./entry-assignment.entity";
 
 @Entity("entries")
 export class Entry {
@@ -47,6 +48,12 @@ export class Entry {
 
   @OneToMany(() => Vote, (v) => v.entry)
   votes!: Vote[];
+
+  @OneToMany(
+    () => EntryAssignment,
+    (assignment) => assignment.entry,
+  )
+  entryAssignments!: EntryAssignment[];
 
   @CreateDateColumn()
   created_at!: Date;

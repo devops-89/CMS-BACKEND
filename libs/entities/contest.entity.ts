@@ -6,6 +6,7 @@ import {
 import { FormTemplate, Entry, Participant } from "@libs/entities";
 import { ContestJudge } from "@libs/entities/contest-judge.entity";
 import { VotingPeriod } from "./voting-period";
+import { EntryAssignment } from "./entry-assignment.entity";
 
 @Entity("contests")
 export class Contest {
@@ -69,6 +70,12 @@ export class Contest {
     (votingPeriod) => votingPeriod.contest,
   )
   votingPeriods!: VotingPeriod[];
+
+  @OneToMany(
+    () => EntryAssignment,
+    (assignment) => assignment.contest,
+  )
+  entryAssignments!: EntryAssignment[];
 
   @CreateDateColumn()
   created_at!: Date;

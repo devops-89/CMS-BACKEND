@@ -9,10 +9,10 @@ export class UserRepository {
     this.repo = AppDataSource.getRepository(User);
   }
 
- async createUser(data:Partial<User>){
-    const user=this.repo.create(data);
+  async createUser(data: Partial<User>) {
+    const user = this.repo.create(data);
     return this.repo.save(user);
- }
+  }
 
   async findByEmail(email: string) {
     return this.repo
@@ -38,9 +38,17 @@ export class UserRepository {
     if (user.role === "judge") {
       return this.repo.findOne({
         where: { id },
-        relations: ["judgeProfile"],
+        relations: [
+          "judgeProfile",
+          "judgeProfile.contestAssignments",
+          "judgeProfile.contestAssignments.contest",
+          "entryAssignments",
+          "entryAssignments.entry",
+          "entryAssignments.contest",
+        ],
       });
     }
+
 
     if (user.role === "participant") {
       return this.repo.findOne({
@@ -53,9 +61,9 @@ export class UserRepository {
   }
 
   async updateUserStatus(userId: string, status: UserStatus) {
-  await this.repo.update(userId, { status });
-  return this.getUserById(userId);
-}
+    await this.repo.update(userId, { status });
+    return this.getUserById(userId);
+  }
 
   async deleteUser(id: string): Promise<boolean> {
     const result = await this.repo.delete(id);
