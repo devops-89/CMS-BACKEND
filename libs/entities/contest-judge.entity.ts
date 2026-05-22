@@ -1,6 +1,7 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, ManyToOne, JoinColumn, Index,
+  DeleteDateColumn,
 } from "typeorm";
 import { Contest } from "./contest.entity";
 import { JudgeProfile } from "./judge-profile.entity";
@@ -37,4 +38,7 @@ export class ContestJudge {
 
   @CreateDateColumn()
   assigned_at!: Date;
+
+  @DeleteDateColumn()
+  deleted_at!: Date;
 }

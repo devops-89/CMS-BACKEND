@@ -5,6 +5,7 @@ const service = new ContestJudgeService();
 
 type ContestParams = { contestId: string };
 type JudgeParams = { contestId: string; jid: string };
+type RemoveJudgeParams = { contestId: string; judgeId: string };
 
 export class ContestJudgeController {
   assign = async (req: Request<ContestParams>, res: Response) => {
@@ -47,6 +48,15 @@ export class ContestJudgeController {
   remove = async (req: Request<JudgeParams>, res: Response) => {
     try {
       const data = await service.removeJudge(req.params.jid);
+      return res.status(200).json(data);
+    } catch (e: any) {
+      return res.status(e.statusCode || 500).json({ message: e.message });
+    }
+  };
+
+  removeContestJudgesandAsigneeEntities = async (req: Request<RemoveJudgeParams>, res: Response) => {
+    try {
+      const data = await service.removeContestJudgeAndAssignments(req.params.contestId, req.params.judgeId);
       return res.status(200).json(data);
     } catch (e: any) {
       return res.status(e.statusCode || 500).json({ message: e.message });

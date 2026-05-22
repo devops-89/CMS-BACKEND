@@ -37,4 +37,14 @@ findByContest(contest_id: string) {
   delete(id: string) {
     return this.repo.delete(id);
   }
+
+  async softDeleteByContest(contest_id: string) {
+    await this.repo.update({ contest_id }, { status: "inactive" });
+    return await this.repo.softDelete({ contest_id });
+  }
+
+  async softDeleteByContestAndJudge(contest_id: string, judge_profile_id: string) {
+    await this.repo.update({ contest_id, judge_profile_id }, { status: "inactive" });
+    return await this.repo.softDelete({ contest_id, judge_profile_id });
+  }
 }
