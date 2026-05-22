@@ -175,4 +175,35 @@ export class ContestJudgeService {
 
     return { message: "Judge removed from contest successfully" };
   }
+
+  async removeContestJudgesAndAssignments(contest_id: string) {
+    const contest = await this.contestRepo.findById(contest_id);
+    if (!contest) throw new NotFoundError("Contest not found");
+
+    // 1. Soft delete entries in EntryAssignment table for this contest
+    const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
+    await entryAssignmentRepo.softDelete({ contest_id });
+
+    // 2. Soft delete and update status to inactive for all contest judges of this contest
+    await this.repo.softDeleteByContest(contest_id);
+
+    return { message: "Contest judges and entry assignments removed successfully" };
+  }
+
+  async removeContestJudgeAndAssignments(contest_id: string, judge_id: string) {
+    const contest = await this.contestRepo.findById(contest_id);
+    if (!contest) throw new NotFoundError("Contest not found");
+
+    const judgeProfile = await this.judgeRepo.findByUserId(judge_id);
+    if (!judgeProfile) throw new NotFoundError("Judge profile not found");
+
+    // 1. Soft delete entries in EntryAssignment table for this contest and judge
+    const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
+    await entryAssignmentRepo.softDelete({ contest_id, judge_id });
+
+    // 2. Soft delete and update status to inactive for this contest judge
+    await this.repo.softDeleteByContestAndJudge(contest_id, judgeProfile.id);
+
+    return { message: "Contest judge and entry assignments removed successfully" };
+  }
 }

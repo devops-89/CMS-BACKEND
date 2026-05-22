@@ -10,4 +10,6 @@ router.patch("/assignments", controller.editAssignments.bind(controller));
 router.patch("/:jid/status", controller.updateStatus.bind(controller));
 router.delete("/:jid", controller.remove.bind(controller));
 
+router.delete("/:judgeId", controller.removeContestJudgesandAsigneeEntities.bind(controller));
+
 export default router;
