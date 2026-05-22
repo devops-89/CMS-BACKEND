@@ -31,6 +31,7 @@ export class Participant {
     onDelete: 'SET NULL',
     nullable: true,
   })
+
   @JoinColumn({ name: 'user_id' })
   user?: User;
 

@@ -27,6 +27,10 @@ export class ParticipantRepository {
     });
   }
 
+  findOne(options: any) {
+    return this.repo.findOne(options);
+  }
+
   updateStatus(id: string, status: Participant["status"]) {
     return this.repo.update(id, { status });
   }

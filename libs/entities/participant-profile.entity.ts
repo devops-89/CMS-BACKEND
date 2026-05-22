@@ -15,16 +15,16 @@ export class ParticipantProfile {
   @JoinColumn()
   user!: User;
 
-  @Column()
+  @Column({ nullable: true })
   dateOfBirth!: Date;
 
-  @Column()
+  @Column({ nullable: true })
   country!: string;
 
-  @Column()
+  @Column({ nullable: true })
   schoolName!: string; // school name
 
-  @Column()
+  @Column({ nullable: true })
   grade!: string; // grade
 
   @OneToOne(() => FormSubmission, { nullable: true, onDelete: "SET NULL" })

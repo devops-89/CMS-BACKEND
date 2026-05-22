@@ -14,6 +14,26 @@ export class UserRepository {
     return this.repo.save(user);
   }
 
+  create(data: Partial<User>) {
+    return this.repo.create(data);
+  }
+
+  save(user: User) {
+    return this.repo.save(user);
+  }
+
+  findByEmailWithParticipantProfile(
+    email: string,
+  ) {
+    return this.repo.findOne({
+      where: {
+        email,
+      },
+      relations: [
+        "participantProfile",
+      ],
+    });
+  }
   async findByEmail(email: string) {
     return this.repo
       .createQueryBuilder("user")
