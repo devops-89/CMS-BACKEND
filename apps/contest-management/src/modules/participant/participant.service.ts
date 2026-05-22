@@ -15,41 +15,40 @@ export class ParticipantService {
   private participantProfileRepo = new ParticipantProfileRepository();
 
 
-  //   async addParticipant(contest_id: string, formData: Record<string, any>) {
-  //     // 1. verify contest exists and get its template
-  //     const contest = await this.contestRepo.findById(contest_id);
-  //     if (!contest) throw new NotFoundError("Contest not found");
+  async addParticipant(contest_id: string, formData: Record<string, any>) {
+    // 1. verify contest exists and get its template
+    const contest = await this.contestRepo.findById(contest_id);
+    if (!contest) throw new NotFoundError("Contest not found");
 
-  //     if (!contest.user_level_template_id) {
-  //   throw new NotFoundError("User level template ID missing");
-  // }
+    if (!contest.user_level_template_id) {
+      throw new NotFoundError("User level template ID missing");
+    }
 
-  // const template = await this.templateRepo.findById(contest.user_level_template_id);
+    const template = await this.templateRepo.findById(contest.user_level_template_id);
 
-  //     if (!template) {
-  //       throw new NotFoundError("Form template not found");
-  //     }
-  //     // 2. get the form template linked to this contest
+    if (!template) {
+      throw new NotFoundError("Form template not found");
+    }
+    // 2. get the form template linked to this contest
 
 
-  //     // 3. create form submission using the contest's template
-  //     const submission = this.submissionRepo.create(template, formData);
-  //     const savedSubmission = await this.submissionRepo.save(submission);
+    // 3. create form submission using the contest's template
+    const submission = this.submissionRepo.create(template, formData);
+    const savedSubmission = await this.submissionRepo.save(submission);
 
-  //     // 4. create participant linking contest + submission
-  //     const participant = this.repo.create({
-  //       contest_id,
-  //       submission_id: savedSubmission.id,
+    // 4. create participant linking contest + submission
+    const participant = this.repo.create({
+      contest_id,
+      submission_id: savedSubmission.id,
+    });
+    console.log("participant", participant);
 
-  //     });
-  //     console.log("participant", participant);
-
-  //     try {
-  //       return await this.repo.save(participant);
-  //     } catch {
-  //       throw new InternalServerError("Failed to add participant");
-  //     }
-  //   }
+    try {
+      return await this.repo.save(participant);
+    } catch {
+      throw new InternalServerError("Failed to add participant");
+    }
+  }
 
   async getParticipants(contest_id: string) {
     const participants = await this.repo.findByContest(contest_id);
@@ -63,121 +62,122 @@ export class ParticipantService {
     });
   }
 
-  async addParticipant(
-    contest_id: string,
-    formData: Record<string, any>,
-  ) {
 
-    const contest = await this.contestRepo.findById(contest_id);
+  // async addParticipant(
+  //   contest_id: string,
+  //   formData: Record<string, any>,
+  // ) {
 
-    if (!contest) {
-      throw new NotFoundError("Contest not found");
-    }
+  //   const contest = await this.contestRepo.findById(contest_id);
 
-    if (!contest.user_level_template_id) {
-      throw new NotFoundError(
-        "User level template ID missing",
-      );
-    }
+  //   if (!contest) {
+  //     throw new NotFoundError("Contest not found");
+  //   }
 
-    const template = await this.templateRepo.findById(
-      contest.user_level_template_id,
-    );
+  //   if (!contest.user_level_template_id) {
+  //     throw new NotFoundError(
+  //       "User level template ID missing",
+  //     );
+  //   }
 
-    if (!template) {
-      throw new NotFoundError(
-        "Form template not found",
-      );
-    }
+  //   const template = await this.templateRepo.findById(
+  //     contest.user_level_template_id,
+  //   );
 
-    const savedSubmission = await this.submissionRepo.save(
-      this.submissionRepo.create(
-        template,
-        formData,
-      ),
-    );
+  //   if (!template) {
+  //     throw new NotFoundError(
+  //       "Form template not found",
+  //     );
+  //   }
 
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      ...extraProfileData
-    } = formData;
+  //   const savedSubmission = await this.submissionRepo.save(
+  //     this.submissionRepo.create(
+  //       template,
+  //       formData,
+  //     ),
+  //   );
 
-    let user = await this.userRepo.findByEmailWithParticipantProfile(
-      email,
-    );
+  //   const {
+  //     firstName,
+  //     lastName,
+  //     email,
+  //     phone,
+  //     ...extraProfileData
+  //   } = formData;
 
-    if (!user) {
+  //   let user = await this.userRepo.findByEmailWithParticipantProfile(
+  //     email,
+  //   );
 
-      user = await this.userRepo.save(
-        this.userRepo.create({
-          firstName: firstName || "Participant",
-          lastName: lastName || "",
-          email,
-          phone: phone || "",
-          role: UserRole.PARTICIPANT,
-          participant_profile_data: extraProfileData,
-        }),
-      );
-    }
+  //   if (!user) {
 
-    else {
+  //     user = await this.userRepo.save(
+  //       this.userRepo.create({
+  //         firstName: firstName || "Participant",
+  //         lastName: lastName || "",
+  //         email,
+  //         phone: phone || "",
+  //         role: UserRole.PARTICIPANT,
+  //         participant_profile_data: extraProfileData,
+  //       }),
+  //     );
+  //   }
 
-      user.participant_profile_data = {
-        ...(user.participant_profile_data || {}),
-        ...extraProfileData,
-      };
+  //   else {
 
-      await this.userRepo.save(user);
-    }
+  //     user.participant_profile_data = {
+  //       ...(user.participant_profile_data || {}),
+  //       ...extraProfileData,
+  //     };
 
-    if (!user.participantProfile) {
+  //     await this.userRepo.save(user);
+  //   }
 
-      await this.participantProfileRepo.save(
-        this.participantProfileRepo.create({
-          user,
-          submission_id: savedSubmission.id,
-        }),
-      );
-    }
+  //   if (!user.participantProfile) {
 
-    const existingParticipant = await this.repo.findOne({
-      where: {
-        contest_id,
-        user_id: user.id,
-      },
-    });
+  //     await this.participantProfileRepo.save(
+  //       this.participantProfileRepo.create({
+  //         user,
+  //         submission_id: savedSubmission.id,
+  //       }),
+  //     );
+  //   }
 
-    if (existingParticipant) {
-      throw new BadRequestError(
-        "Participant already joined this contest",
-      );
-    }
+  //   const existingParticipant = await this.repo.findOne({
+  //     where: {
+  //       contest_id,
+  //       user_id: user.id,
+  //     },
+  //   });
 
-    try {
+  //   if (existingParticipant) {
+  //     throw new BadRequestError(
+  //       "Participant already joined this contest",
+  //     );
+  //   }
 
-      return await this.repo.save(
-        this.repo.create({
-          contest_id,
-          submission_id: savedSubmission.id,
-          user_id: user.id,
-        }),
-      );
+  //   try {
 
-    } catch (error) {
+  //     return await this.repo.save(
+  //       this.repo.create({
+  //         contest_id,
+  //         submission_id: savedSubmission.id,
+  //         user_id: user.id,
+  //       }),
+  //     );
 
-      console.log(
-        "Participant Create Error:",
-        error,
-      );
+  //   } catch (error) {
 
-      throw new InternalServerError(
-        "Failed to add participant",
-      );
-    }
-  }
+  //     console.log(
+  //       "Participant Create Error:",
+  //       error,
+  //     );
+
+  //     throw new InternalServerError(
+  //       "Failed to add participant",
+  //     );
+  //   }
+  // }
 
   async getParticipantById(id: string, contest_id: string) {
     const participant = await this.repo.findById(id, contest_id);

@@ -23,7 +23,7 @@ export class EntryRepository {
   findById(id: string, contest_id: string) {
     return this.repo.findOne({
       where: { id, contest_id },
-      relations: ["participant", "submission", "votes"],
+      relations: ["participant", "submission", "votes", "contest", "contest.entryLevelTemplate"],
     });
   }
 
