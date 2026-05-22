@@ -1,5 +1,5 @@
 // libs/entities/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from "typeorm";
 import { AdminProfile } from "./admin-profile.entity";
 import { JudgeProfile } from "./judge-profile.entity";
 import { ParticipantProfile } from "./participant-profile.entity";
@@ -81,5 +81,22 @@ export class User {
     (assignment) => assignment.judge,
   )
   entryAssignments!: EntryAssignment[];
+
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    default: {},
+  })
+  participant_profile_data?: Record<string, any>;
+
+  @CreateDateColumn()
+  created_at!: Date;
+
+  @UpdateDateColumn()
+  updated_at!: Date;
+
+  @DeleteDateColumn()
+  deleted_at!: Date;
+
 
 }

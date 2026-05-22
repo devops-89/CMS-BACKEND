@@ -8,7 +8,9 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "@libs/*": ["libs/*"]
+      "@libs/*": [
+        "libs/*"
+      ]
     },
     "outDir": "dist",
     "esModuleInterop": true,
@@ -17,6 +19,11 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["apps", "libs"],
-  "exclude": ["node_modules"]
+  "include": [
+    "apps",
+    "libs"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
