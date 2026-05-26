@@ -196,6 +196,9 @@ export class ParticipantService {
       "last name",
     ]);
 
+  const fullName = 
+  getFieldValueByLabel(["Full Name"]) || `${firstName} ${lastName}`;
+
   const email =
     getFieldValueByLabel([
       "email",
@@ -278,10 +281,12 @@ export class ParticipantService {
       this.userRepo.create({
 
         firstName:
-          firstName || "Participant",
+          firstName || "",
 
         lastName:
           lastName || "",
+
+        fullName: fullName,
 
         email: resolvedEmail,
 
