@@ -271,7 +271,7 @@ export class AuthController {
       console.log("password", password);
       console.log("User password", user.password);
 
-      const match = await bcrypt.compare(password, user.password);
+      const match = await bcrypt.compare(password, user.password || "");
 
       if (!match) {
         return res.status(401).json({
@@ -416,7 +416,7 @@ export class AuthController {
       console.log("OTP:", otp);
       console.log("User Email:", user.email);
 
-      await this.notificationService.sendOtp(user.email, otp, user.firstName);
+      await this.notificationService.sendOtp(user.email || "", otp, user.firstName || "");
 
       return res.json({
         message: "OTP sent successfully",
