@@ -65,208 +65,406 @@ export class ParticipantService {
   }
 
 
-  async addParticipant(
-    contest_id: string,
-    formData: Record<string, any>,
-  ) {
+ async addParticipant(
+  contest_id: string,
+  formData: Record<string, any>,
+) {
 
-    const contest = await this.contestRepo.findById(contest_id);
+  // =========================
+  // Fetch Contest
+  // =========================
 
-    if (!contest) {
-      throw new NotFoundError("Contest not found");
-    }
+  const contest = await this.contestRepo.findById(
+    contest_id,
+  );
 
-    if (!contest.user_level_template_id) {
-      throw new NotFoundError(
-        "User level template ID missing",
-      );
-    }
-
-    const template = await this.templateRepo.findById(
-      contest.user_level_template_id,
+  if (!contest) {
+    throw new NotFoundError(
+      "Contest not found",
     );
+  }
 
-    if (!template) {
-      throw new NotFoundError(
-        "Form template not found",
-      );
-    }
+  if (!contest.user_level_template_id) {
+    throw new NotFoundError(
+      "User level template ID missing",
+    );
+  }
 
-    const savedSubmission = await this.submissionRepo.save(
+  // =========================
+  // Fetch Template
+  // =========================
+
+  const template = await this.templateRepo.findById(
+    contest.user_level_template_id,
+  );
+
+  if (!template) {
+    throw new NotFoundError(
+      "Form template not found",
+    );
+  }
+
+  // =========================
+  // Save Submission
+  // =========================
+
+  const savedSubmission =
+    await this.submissionRepo.save(
       this.submissionRepo.create(
         template,
         formData,
       ),
     );
 
-    // Flatten template fields to handle step breaks or groups
-    const flattenFields = (fields: any[]): any[] => {
-      let result: any[] = [];
-      if (!fields) return result;
-      for (const f of fields) {
-        result.push(f);
-        if (f.config?.children) {
-          result.push(...flattenFields(f.config.children));
-        }
+  // =========================
+  // Flatten Fields
+  // =========================
+
+  const flattenFields = (
+    fields: any[],
+  ): any[] => {
+
+    let result: any[] = [];
+
+    if (!fields) return result;
+
+    for (const field of fields) {
+
+      result.push(field);
+
+      if (field.config?.children) {
+        result.push(
+          ...flattenFields(
+            field.config.children,
+          ),
+        );
       }
-      return result;
-    };
-
-    const allFields = flattenFields(template.schema?.fields || []);
-
-    // Helper to find a value from formData by field type, variant, or label
-    const findFieldVal = (variants: string[], labels: string[], type?: string) => {
-      const fieldDef = allFields.find(f => {
-        if (f.variant && variants.some(v => v.toLowerCase() === f.variant?.toLowerCase())) {
-          return true;
-        }
-        if (type && f.type && f.type.toLowerCase() === type.toLowerCase()) {
-          return true;
-        }
-        if (f.label && labels.some(l => f.label.toLowerCase().includes(l.toLowerCase()))) {
-          return true;
-        }
-        return false;
-      });
-
-      if (fieldDef && formData[fieldDef.id] !== undefined) {
-        return formData[fieldDef.id];
-      }
-
-      // Fallback check direct keys in formData
-      for (const variant of variants) {
-        if (formData[variant] !== undefined) return formData[variant];
-      }
-      for (const label of labels) {
-        if (formData[label] !== undefined) return formData[label];
-      }
-      
-      return undefined;
-    };
-
-    const firstName = findFieldVal(["firstName", "first_name", "fname"], ["first name", "given name"]);
-    const lastName = findFieldVal(["lastName", "last_name", "lname"], ["last name", "surname", "family name"]);
-    const email = findFieldVal(["email"], ["email", "e-mail"], "email");
-    const phone = findFieldVal(["phone", "phoneNumber", "phone_number"], ["phone", "mobile", "contact"], "phone");
-    const dateOfBirth = findFieldVal(["dateOfBirth", "dob", "birthDate"], ["date of birth", "dob", "birthdate"]);
-    const country = findFieldVal(["country"], ["country", "nation"]);
-    const schoolName = findFieldVal(["schoolName", "school_name", "school"], ["school name", "school", "institution"]);
-    const grade = findFieldVal(["grade", "class"], ["grade", "class", "year"]);
-
-    // Fallback: If no email is provided, generate a unique placeholder to avoid database constraints
-    let resolvedEmail = email;
-    if (!resolvedEmail) {
-      resolvedEmail = `participant_${Date.now()}_${Math.random().toString(36).substring(2, 6)}@launchpad-temp.com`;
     }
 
-    let user = await this.userRepo.findByEmailWithParticipantProfile(
-      resolvedEmail,
+    return result;
+  };
+
+  const allFields = flattenFields(
+    template.schema?.fields || [],
+  );
+
+  // =========================
+  // Dynamic Field Resolver
+  // =========================
+
+  const getFieldValueByLabel = (
+    labelMatchers: string[],
+  ) => {
+
+    const field = allFields.find(
+      (f) => {
+
+        if (!f.label) {
+          return false;
+        }
+
+        const normalizedLabel =
+          f.label.toLowerCase().trim();
+
+        return labelMatchers.some(
+          (matcher) =>
+            normalizedLabel.includes(
+              matcher.toLowerCase(),
+            ),
+        );
+      },
     );
 
-    if (!user) {
-      // Generate a secure random password for the auto-created user
-      const tempPassword = crypto.randomBytes(16).toString("hex");
-      const hashedPassword = await bcrypt.hash(tempPassword, 12);
-
-      user = await this.userRepo.save(
-        this.userRepo.create({
-          firstName: firstName || "Participant",
-          lastName: lastName || "",
-          email: resolvedEmail,
-          phone: phone || "",
-          password: hashedPassword,
-          role: UserRole.PARTICIPANT,
-          participant_profile_data: formData, // Store the entire raw payload here
-        }),
-      );
-    } else {
-      user.participant_profile_data = {
-        ...(user.participant_profile_data || {}),
-        ...formData, // Store/merge the entire raw payload here
-      };
-
-      if (firstName) user.firstName = firstName;
-      if (lastName) user.lastName = lastName;
-      if (phone) user.phone = phone;
-
-      await this.userRepo.save(user);
+    if (!field) {
+      return undefined;
     }
 
-    if (!user.participantProfile) {
-      const profileData: any = {
-        user,
-        submission_id: savedSubmission.id,
-      };
-      if (dateOfBirth) profileData.dateOfBirth = new Date(dateOfBirth);
-      if (country) profileData.country = country;
-      if (schoolName) profileData.schoolName = schoolName;
-      if (grade) profileData.grade = grade;
+    return formData[field.id];
+  };
 
-      const profile = await this.participantProfileRepo.save(
-        this.participantProfileRepo.create(profileData),
+  // =========================
+  // Extract Dynamic Values
+  // =========================
+
+  const firstName =
+    getFieldValueByLabel([
+      "first name",
+    ]);
+
+  const lastName =
+    getFieldValueByLabel([
+      "last name",
+    ]);
+
+  const email =
+    getFieldValueByLabel([
+      "email",
+    ]);
+
+  const phone =
+    getFieldValueByLabel([
+      "phone",
+      "phone number",
+      "mobile",
+    ]);
+
+  const dateOfBirth =
+    getFieldValueByLabel([
+      "birth date",
+      "date of birth",
+      "dob",
+    ]);
+
+  const schoolName =
+    getFieldValueByLabel([
+      "school name",
+      "school",
+    ]);
+
+  const grade =
+    getFieldValueByLabel([
+      "grade",
+      "year",
+    ]);
+
+  const country =
+    getFieldValueByLabel([
+      "country",
+      "country of residence",
+    ]);
+
+  // =========================
+  // Email Fallback
+  // =========================
+
+  let resolvedEmail = email;
+
+  if (!resolvedEmail) {
+
+    resolvedEmail =
+      `participant_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 6)}@launchpad-temp.com`;
+  }
+
+  // =========================
+  // Find Existing User
+  // =========================
+
+  let user =
+    await this.userRepo
+      .findByEmailWithParticipantProfile(
+        resolvedEmail,
       );
-      user.participantProfile = profile;
-    } else {
-      const existingProfile = user.participantProfile;
-      let profileUpdated = false;
 
-      if (dateOfBirth) {
-        existingProfile.dateOfBirth = new Date(dateOfBirth);
-        profileUpdated = true;
-      }
-      if (country) {
-        existingProfile.country = country;
-        profileUpdated = true;
-      }
-      if (schoolName) {
-        existingProfile.schoolName = schoolName;
-        profileUpdated = true;
-      }
-      if (grade) {
-        existingProfile.grade = grade;
-        profileUpdated = true;
-      }
+  // =========================
+  // Create User
+  // =========================
 
-      if (profileUpdated) {
-        await this.participantProfileRepo.save(existingProfile);
-      }
+  if (!user) {
+
+    const tempPassword =
+      crypto.randomBytes(16)
+        .toString("hex");
+
+    const hashedPassword =
+      await bcrypt.hash(
+        tempPassword,
+        12,
+      );
+
+    user = await this.userRepo.save(
+
+      this.userRepo.create({
+
+        firstName:
+          firstName || "Participant",
+
+        lastName:
+          lastName || "",
+
+        email: resolvedEmail,
+
+        phone:
+          phone || "",
+
+        password: "",
+
+        role:
+          UserRole.PARTICIPANT,
+
+        form_template_id:
+          template.id,
+
+        participant_profile_data:
+          formData,
+      }),
+    );
+
+  } else {
+
+    // =========================
+    // Update Existing User
+    // =========================
+
+    user.participant_profile_data = {
+      ...(user.participant_profile_data || {}),
+      ...formData,
+    };
+
+    if (firstName) {
+      user.firstName = firstName;
     }
 
-    const existingParticipant = await this.repo.findOne({
+    if (lastName) {
+      user.lastName = lastName;
+    }
+
+    if (phone) {
+      user.phone = phone;
+    }
+
+    if (template?.id) {
+      user.form_template_id =
+        template.id;
+    }
+
+    await this.userRepo.save(user);
+  }
+
+  // =========================
+  // Create / Update Profile
+  // =========================
+
+  if (!user.participantProfile) {
+
+    const profileData: any = {
+
+      user,
+
+      submission_id:
+        savedSubmission.id,
+
+      schoolName,
+
+      country,
+
+      grade,
+    };
+
+    if (dateOfBirth) {
+      profileData.dateOfBirth =
+        new Date(dateOfBirth);
+    }
+
+    const profile =
+      await this.participantProfileRepo.save(
+
+        this.participantProfileRepo.create(
+          profileData,
+        ),
+      );
+
+    user.participantProfile =
+      profile;
+
+  } else {
+
+    const existingProfile =
+      user.participantProfile;
+
+    let profileUpdated = false;
+
+    if (dateOfBirth) {
+
+      existingProfile.dateOfBirth =
+        new Date(dateOfBirth);
+
+      profileUpdated = true;
+    }
+
+    if (country) {
+
+      existingProfile.country =
+        country;
+
+      profileUpdated = true;
+    }
+
+    if (schoolName) {
+
+      existingProfile.schoolName =
+        schoolName;
+
+      profileUpdated = true;
+    }
+
+    if (grade) {
+
+      existingProfile.grade =
+        grade;
+
+      profileUpdated = true;
+    }
+
+    if (profileUpdated) {
+
+      await this.participantProfileRepo.save(
+        existingProfile,
+      );
+    }
+  }
+
+  // =========================
+  // Prevent Duplicate Join
+  // =========================
+
+  const existingParticipant =
+    await this.repo.findOne({
       where: {
         contest_id,
         user_id: user.id,
       },
     });
 
-    if (existingParticipant) {
-      throw new BadRequestError(
-        "Participant already joined this contest",
-      );
-    }
+  if (existingParticipant) {
 
-    try {
-
-      return await this.repo.save(
-        this.repo.create({
-          contest_id,
-          submission_id: savedSubmission.id,
-          user_id: user.id,
-        }),
-      );
-
-    } catch (error) {
-
-      console.log(
-        "Participant Create Error:",
-        error,
-      );
-
-      throw new InternalServerError(
-        "Failed to add participant",
-      );
-    }
+    throw new BadRequestError(
+      "Participant already joined this contest",
+    );
   }
+
+  // =========================
+  // Create Participant
+  // =========================
+
+  try {
+
+    return await this.repo.save(
+
+      this.repo.create({
+
+        contest_id,
+
+        submission_id:
+          savedSubmission.id,
+
+        user_id: user.id,
+      }),
+    );
+
+  } catch (error) {
+
+    console.log(
+      "Participant Create Error:",
+      error,
+    );
+
+    throw new InternalServerError(
+      "Failed to add participant",
+    );
+  }
+}
 
   async getParticipantById(id: string, contest_id: string) {
     const participant = await this.repo.findById(id, contest_id);
