@@ -1,9 +1,11 @@
 import express from "express";
 import cors from "cors";
 import contestRoutes from "./contest.routes";
+import { requestLoggerMiddleware } from "libs/middlewares/request-logger.middleware";
 
 const app = express();
 
+app.use(requestLoggerMiddleware);
 
 app.use(express.json());
 

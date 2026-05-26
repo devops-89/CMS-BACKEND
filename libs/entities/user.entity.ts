@@ -1,10 +1,11 @@
 // libs/entities/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn } from "typeorm";
 import { AdminProfile } from "./admin-profile.entity";
 import { JudgeProfile } from "./judge-profile.entity";
 import { ParticipantProfile } from "./participant-profile.entity";
 import { Participant } from "./participant.entity";
 import { EntryAssignment } from "./entry-assignment.entity";
+import { FormTemplate } from "./form-template.entity";
 
 export enum UserRole {
   ADMIN = "admin",
@@ -35,20 +36,20 @@ export class User {
   @Column({ nullable: true })
   avatarUrl?: string;
 
-  @Column()
-  firstName!: string;
+  @Column({ nullable: true })
+  firstName?: string;
 
-  @Column()
-  lastName!: string;
+  @Column({ nullable: true })
+  lastName?: string;
 
-  @Column()
-  phone!: string;
+  @Column({ nullable: true })
+  phone?: string;
 
-  @Column({ unique: true })
-  email!: string;
+  @Column({ unique: true, nullable: true })
+  email?: string;
 
-  @Column({ select: false })
-  password!: string;
+  @Column({ select: false, nullable: true })
+  password?: string;
 
   @Column({
     type: "enum",
@@ -88,6 +89,21 @@ export class User {
     default: {},
   })
   participant_profile_data?: Record<string, any>;
+
+  // Relation
+@ManyToOne(
+  () => FormTemplate,
+  (formTemplate) => formTemplate.users,
+  {
+    nullable: true,
+    onDelete: "SET NULL",
+  },
+)
+@JoinColumn({ name: "form_template_id" })
+formTemplate?: FormTemplate;
+
+@Column({ nullable: true })
+form_template_id?: string;
 
   @CreateDateColumn()
   created_at!: Date;

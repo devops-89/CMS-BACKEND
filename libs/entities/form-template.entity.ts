@@ -7,6 +7,7 @@ import {
   OneToMany,
 } from "typeorm";
 import { FormSubmission } from "./form-submission.entity";
+import { User } from "./user.entity";
 
 
 
@@ -19,11 +20,11 @@ export type FieldConfig = {
   min?: number;
   max?: number;
 
-  // 🔥 NEW (REQUIRED)
+  //  NEW (REQUIRED)
   linkedTemplateId?: string;
   isInline?: boolean;
 
-  // 🔥 Branching
+  //  Branching
   enableBranching?: boolean;
   routing?: Record<string, string>;
 
@@ -39,7 +40,7 @@ export type FormField = {
 
   variant?: string;
 
-  // 🔥 NEW (frontend is sending these)
+  //  NEW (frontend is sending these)
   placeholder?: string;
   helperText?: string;
 
@@ -53,7 +54,7 @@ export type FormIdentity = {
   title: string;
   timestamp: string;
 
-  // 🔥 NEW
+  //  NEW
   section_name?: string;
 };
 
@@ -61,7 +62,7 @@ export type FormSchema = {
   form_identity: FormIdentity;
   fields: FormField[];
 
-  // 🔥 optional (if frontend expands later)
+  //  optional (if frontend expands later)
   rules?: any[];
 };
 
@@ -86,6 +87,12 @@ export class FormTemplate {
   // Relation with Submissions
   @OneToMany(() => FormSubmission, (submission) => submission.template)
   submissions!: FormSubmission[];
+
+  @OneToMany(
+  () => User,
+  (user) => user.formTemplate,
+)
+users!: User[];
 
   @CreateDateColumn()
   createdAt!: Date;

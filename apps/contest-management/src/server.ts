@@ -7,7 +7,7 @@ const PORT = 5004;
     console.log(" Database connected To Contest Management Service.");
 
 
-    app.listen(PORT, () => {
+    app.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 contest-management service running on ${PORT}`);
     });
 
