@@ -268,10 +268,39 @@ async getContestOverview(id: string) {
       start_date: string;
       end_date: string;
       is_active: boolean;
+      max_score: number;
+      criteria: { description: string; weighting: number }[];
+      judge_ids: string[];
     }>
   ) {
     const existing = await this.votingPeriodRepo.findById(id);
     if (!existing) throw new NotFoundError("Voting period not found");
+
+    const contestId = existing.contest_id;
+
+    // Check for duplicate voting period type if voting_type is being updated
+    // if (payload.voting_type && payload.voting_type !== existing.voting_type) {
+    //   const existingPeriods = await this.votingPeriodRepo.findByContestId(contestId);
+    //   const isDuplicate = existingPeriods.some(vp => vp.voting_type === payload.voting_type && vp.id !== id);
+    //   if (isDuplicate) {
+    //     throw new ConflictError(`Voting period of type ${payload.voting_type} already exists for this contest`);
+    //   }
+    // }
+
+    // Validate judge_ids if provided
+    if (payload.judge_ids && payload.judge_ids.length > 0) {
+      const contestJudges = await this.contestJudgeRepo.findByContest(contestId);
+      const activeJudgeUserIds = contestJudges
+        .filter((cj) => cj.status === "active")
+        .map((cj) => cj.judgeProfile?.user?.id)
+        .filter((id): id is string => !!id);
+
+      for (const judgeId of payload.judge_ids) {
+        if (!activeJudgeUserIds.includes(judgeId)) {
+          throw new BadRequestError(`Judge with ID ${judgeId} does not belong to this contest`);
+        }
+      }
+    }
 
     const updateData: Partial<VotingPeriod> = {};
 
@@ -304,8 +333,59 @@ async getContestOverview(id: string) {
       throw new ConflictError("end_date must be after start_date");
     }
 
+    const finalVotingType = payload.voting_type ?? existing.voting_type;
+    if (finalVotingType === VotingType.JUDGE) {
+      const finalMaxScore = payload.max_score !== undefined ? payload.max_score : existing.max_score;
+      const finalCriteria = payload.criteria !== undefined ? payload.criteria : existing.criteria;
+
+      if (finalMaxScore === undefined || finalMaxScore === null) {
+        throw new UnprocessableEntityError("max_score is required when voting_type is JUDGE");
+      }
+      if (!finalCriteria || !Array.isArray(finalCriteria) || finalCriteria.length === 0) {
+        throw new UnprocessableEntityError("criteria is required and must be a non-empty array when voting_type is JUDGE");
+      }
+
+      let sumWeightings = 0;
+      for (const item of finalCriteria) {
+        if (!item.description || typeof item.description !== 'string') {
+          throw new BadRequestError("Each criterion must have a valid description");
+        }
+        if (item.weighting === undefined || item.weighting === null || typeof item.weighting !== 'number') {
+          throw new BadRequestError("Each criterion must have a valid numerical weighting");
+        }
+        sumWeightings += item.weighting;
+      }
+
+      if (sumWeightings !== finalMaxScore) {
+        throw new BadRequestError("The sum of criteria weightings must equal the maximum score");
+      }
+
+      updateData.max_score = finalMaxScore;
+      updateData.criteria = finalCriteria;
+    } else {
+      updateData.max_score = null;
+      updateData.criteria = null;
+    }
+
     try {
       await this.votingPeriodRepo.update(id, updateData);
+
+      if (payload.judge_ids !== undefined) {
+        // Remove existing judge assignments for this voting period
+        await this.judgeAssignedVotingPeriodRepo.deleteByVotingPeriodId(id);
+
+        // Save new judge assignments
+        if (payload.judge_ids.length > 0) {
+          for (const judgeId of payload.judge_ids) {
+            const assigned = this.judgeAssignedVotingPeriodRepo.create({
+              voting_period_id: id,
+              judge_id: judgeId,
+            });
+            await this.judgeAssignedVotingPeriodRepo.save(assigned);
+          }
+        }
+      }
+
       return await this.votingPeriodRepo.findById(id);
     } catch {
       throw new InternalServerError("Failed to update voting period");
