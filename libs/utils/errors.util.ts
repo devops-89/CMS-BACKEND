@@ -34,3 +34,41 @@ export class BadRequestError extends Error {
     Object.setPrototypeOf(this, BadRequestError.prototype);
   }
 }
+
+export class UnprocessableEntityError extends Error {
+    statusCode=422;
+
+    constructor(message:string){
+        super(message);
+        Object.setPrototypeOf(this,UnprocessableEntityError.prototype);
+    }
+}
+
+export class ForbiddenError extends Error {
+  statusCode = 403;
+
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, ForbiddenError.prototype);
+  }
+}
+
+
+
+export class TooManyRequestsError extends Error {
+  statusCode = 429;
+
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, TooManyRequestsError.prototype);
+  }
+}
+
+export class RateLimitError extends Error {
+  statusCode = 429;
+
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, RateLimitError.prototype);
+  }
+}

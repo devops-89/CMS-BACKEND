@@ -1,11 +1,13 @@
-import { ContestRepository, EntryRepository, ParticipantRepository, VotingPeriodRepository } from "@libs/repositories";
-import { NotFoundError, InternalServerError, ConflictError } from "@libs/utils/errors.util";
+import { ContestRepository, EntryRepository, ParticipantRepository, VotingPeriodRepository, ContestJudgeRepository, JudgeAssignedVotingPeriodRepository } from "@libs/repositories";
+import { NotFoundError, InternalServerError, ConflictError, UnprocessableEntityError, BadRequestError } from "@libs/utils/errors.util";
 import { Contest, VotingPeriod, VotingType } from "@libs/entities";
 export class ContestService {
   private repo = new ContestRepository();
   private participantRepo = new ParticipantRepository();
   private entryRepo = new EntryRepository();
   private votingPeriodRepo = new VotingPeriodRepository();
+  private contestJudgeRepo = new ContestJudgeRepository();
+  private judgeAssignedVotingPeriodRepo = new JudgeAssignedVotingPeriodRepository();
 
    async createContest(payload: {
     name: string;
@@ -152,22 +154,43 @@ async getContestOverview(id: string) {
       end_date: string;
       max_score?: number;
       criteria?: { description: string; weighting: number }[];
+      judge_ids?: string[];
     }
   ) {
     const contest = await this.repo.findById(contestId);
     if (!contest) throw new NotFoundError("Contest not found");
 
+    const existingPeriods = await this.votingPeriodRepo.findByContestId(contestId);
+    const isDuplicate = existingPeriods.some(vp => vp.voting_type === payload.voting_type);
+    if (isDuplicate) {
+      throw new ConflictError(`Voting period of type ${payload.voting_type} already exists for this contest`);
+    }
+
+    if (payload.judge_ids && payload.judge_ids.length > 0) {
+      const contestJudges = await this.contestJudgeRepo.findByContest(contestId);
+      const activeJudgeUserIds = contestJudges
+        .filter((cj) => cj.status === "active")
+        .map((cj) => cj.judgeProfile?.user?.id)
+        .filter((id): id is string => !!id);
+
+      for (const judgeId of payload.judge_ids) {
+        if (!activeJudgeUserIds.includes(judgeId)) {
+          throw new BadRequestError(`Judge with ID ${judgeId} does not belong to this contest`);
+        }
+      }
+    }
+
     const start = new Date(payload.start_date);
     const end = new Date(payload.end_date);
 
     if (isNaN(start.getTime())) {
-      throw new ConflictError("Invalid start_date format");
+      throw new BadRequestError("Invalid start_date format");
     }
     if (isNaN(end.getTime())) {
-      throw new ConflictError("Invalid end_date format");
+      throw new BadRequestError("Invalid end_date format");
     }
     if (end <= start) {
-      throw new ConflictError("end_date must be after start_date");
+      throw new BadRequestError("end_date must be after start_date");
     }
 
     let maxScoreVal: number | null = null;
@@ -175,25 +198,25 @@ async getContestOverview(id: string) {
 
     if (payload.voting_type === VotingType.JUDGE) {
       if (payload.max_score === undefined || payload.max_score === null) {
-        throw new ConflictError("max_score is required when voting_type is JUDGE");
+        throw new UnprocessableEntityError("max_score is required when voting_type is JUDGE");
       }
       if (!payload.criteria || !Array.isArray(payload.criteria) || payload.criteria.length === 0) {
-        throw new ConflictError("criteria is required and must be a non-empty array when voting_type is JUDGE");
+        throw new UnprocessableEntityError("criteria is required and must be a non-empty array when voting_type is JUDGE");
       }
 
       let sumWeightings = 0;
       for (const item of payload.criteria) {
         if (!item.description || typeof item.description !== 'string') {
-          throw new ConflictError("Each criterion must have a valid description");
+          throw new BadRequestError("Each criterion must have a valid description");
         }
         if (item.weighting === undefined || item.weighting === null || typeof item.weighting !== 'number') {
-          throw new ConflictError("Each criterion must have a valid numerical weighting");
+          throw new BadRequestError("Each criterion must have a valid numerical weighting");
         }
         sumWeightings += item.weighting;
       }
 
       if (sumWeightings !== payload.max_score) {
-        throw new ConflictError("The sum of criteria weightings must equal the maximum score");
+        throw new BadRequestError("The sum of criteria weightings must equal the maximum score");
       }
 
       maxScoreVal = payload.max_score;
@@ -210,7 +233,19 @@ async getContestOverview(id: string) {
       criteria: criteriaVal,
     });
 
-    return await this.votingPeriodRepo.save(votingPeriod);
+    const savedVotingPeriod = await this.votingPeriodRepo.save(votingPeriod);
+
+    if (payload.judge_ids && payload.judge_ids.length > 0) {
+      for (const judgeId of payload.judge_ids) {
+        const assigned = this.judgeAssignedVotingPeriodRepo.create({
+          voting_period_id: savedVotingPeriod.id,
+          judge_id: judgeId,
+        });
+        await this.judgeAssignedVotingPeriodRepo.save(assigned);
+      }
+    }
+
+    return savedVotingPeriod;
   }
 
   async getVotingPeriods(contestId: string) {
