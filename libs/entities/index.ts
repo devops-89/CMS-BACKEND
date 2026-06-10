@@ -13,3 +13,4 @@ export * from "./vote.entity";
 export * from "./contest-judge.entity";
 export * from "./voting-period";
 export * from "./entry-assignment.entity";
+export * from "./judge-assigned-voting-period";
