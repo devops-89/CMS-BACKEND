@@ -30,8 +30,8 @@ export class ContestService {
     return await this.repo.save(contest);
   }
 
-  async getContests(status?: string, search?: string) {
-    return await this.repo.findAll(status, search);
+  async getContests(status?: string, search?: string, page: number = 1, limit: number = 10) {
+    return await this.repo.findAll(status, search, page, limit);
   }
 
   async getContestById(id: string) {

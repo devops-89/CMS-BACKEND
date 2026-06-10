@@ -62,4 +62,18 @@ export class ContestJudgeController {
       return res.status(e.statusCode || 500).json({ message: e.message });
     }
   };
+
+  getMyEntries = async (req: Request, res: Response) => {
+    try {
+      const judgeId = (req as any).user.userId;
+      const { page, limit } = req.query as Record<string, string>;
+      const parsedPage = page ? parseInt(page, 10) : 1;
+      const parsedLimit = limit ? parseInt(limit, 10) : 10;
+
+      const data = await service.getJudgeAssignments(judgeId, parsedPage, parsedLimit);
+      return res.status(200).json({ message: "Assignments fetched successfully", data });
+    } catch (e: any) {
+      return res.status(e.statusCode || 500).json({ message: e.message });
+    }
+  };
 }
