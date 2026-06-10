@@ -16,7 +16,7 @@ export class ContestRepository {
   return this.repo.findOne({ where: { name } });
 }
 
-  findAll(status?: string, search?: string) {
+  async findAll(status?: string, search?: string, page: number = 1, limit: number = 10) {
     const qb = this.repo.createQueryBuilder("contest")
       .leftJoinAndSelect("contest.formTemplate", "formTemplate")
       .loadRelationCountAndMap("contest.participantCount", "contest.participants")
@@ -30,7 +30,26 @@ export class ContestRepository {
       qb.andWhere("contest.name ILIKE :search", { search: `%${search}%` });
     }
 
-    return qb.orderBy("contest.created_at", "DESC").getMany();
+    qb.orderBy("contest.created_at", "DESC");
+
+    qb.skip((page - 1) * limit);
+    qb.take(limit);
+
+    const [docs, totalDocs] = await qb.getManyAndCount();
+
+    const totalPages = Math.ceil(totalDocs / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      docs,
+      totalDocs,
+      page,
+      limit,
+      totalPages,
+      hasNextPage,
+      hasPrevPage,
+    };
   }
 
   findById(id: string) {

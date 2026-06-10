@@ -58,6 +58,20 @@ export class VotingPeriod {
     })
     is_active!: boolean;
 
+    @Column({
+        type: 'int',
+        nullable: true,
+        default: null,
+    })
+    max_score!: number | null;
+
+    @Column({
+        type: 'jsonb',
+        nullable: true,
+        default: null,
+    })
+    criteria!: { description: string; weighting: number }[] | null;
+
     @CreateDateColumn()
     created_at!: Date;
 }

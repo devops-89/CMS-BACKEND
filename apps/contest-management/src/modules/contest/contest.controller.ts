@@ -17,8 +17,11 @@ export class ContestController {
 
   getAll = async (req: Request, res: Response) => {
     try {
-      const { status, search } = req.query as Record<string, string>;
-      const data = await service.getContests(status, search);
+      const { status, search, page, limit } = req.query as Record<string, string>;
+      const parsedPage = page ? parseInt(page, 10) : 1;
+      const parsedLimit = limit ? parseInt(limit, 10) : 10;
+
+      const data = await service.getContests(status, search, parsedPage, parsedLimit);
       return res.status(200).json({ message: "Contests fetched", data });
     } catch (e: any) {
       return res.status(e.statusCode || 500).json({ message: e.message });
@@ -63,7 +66,7 @@ export class ContestController {
 
   createVotingPeriod = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const data = await service.createVotingPeriod(req.params.id, req.body);
+      const data = await service.createVotingPeriodService(req.params.id, req.body);
       return res.status(201).json({ message: "Voting period created", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });

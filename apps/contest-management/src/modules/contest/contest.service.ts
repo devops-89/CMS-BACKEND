@@ -30,8 +30,8 @@ export class ContestService {
     return await this.repo.save(contest);
   }
 
-  async getContests(status?: string, search?: string) {
-    return await this.repo.findAll(status, search);
+  async getContests(status?: string, search?: string, page: number = 1, limit: number = 10) {
+    return await this.repo.findAll(status, search, page, limit);
   }
 
   async getContestById(id: string) {
@@ -144,12 +144,14 @@ async getContestOverview(id: string) {
     return { message: "Contest deleted successfully" };
   }
 
-  async createVotingPeriod(
+  async createVotingPeriodService(
     contestId: string,
     payload: {
       voting_type: VotingType;
       start_date: string;
       end_date: string;
+      max_score?: number;
+      criteria?: { description: string; weighting: number }[];
     }
   ) {
     const contest = await this.repo.findById(contestId);
@@ -168,12 +170,44 @@ async getContestOverview(id: string) {
       throw new ConflictError("end_date must be after start_date");
     }
 
+    let maxScoreVal: number | null = null;
+    let criteriaVal: { description: string; weighting: number }[] | null = null;
+
+    if (payload.voting_type === VotingType.JUDGE) {
+      if (payload.max_score === undefined || payload.max_score === null) {
+        throw new ConflictError("max_score is required when voting_type is JUDGE");
+      }
+      if (!payload.criteria || !Array.isArray(payload.criteria) || payload.criteria.length === 0) {
+        throw new ConflictError("criteria is required and must be a non-empty array when voting_type is JUDGE");
+      }
+
+      let sumWeightings = 0;
+      for (const item of payload.criteria) {
+        if (!item.description || typeof item.description !== 'string') {
+          throw new ConflictError("Each criterion must have a valid description");
+        }
+        if (item.weighting === undefined || item.weighting === null || typeof item.weighting !== 'number') {
+          throw new ConflictError("Each criterion must have a valid numerical weighting");
+        }
+        sumWeightings += item.weighting;
+      }
+
+      if (sumWeightings !== payload.max_score) {
+        throw new ConflictError("The sum of criteria weightings must equal the maximum score");
+      }
+
+      maxScoreVal = payload.max_score;
+      criteriaVal = payload.criteria;
+    }
+
     const votingPeriod = this.votingPeriodRepo.create({
       contest_id: contestId,
       voting_type: payload.voting_type,
       start_date: start,
       end_date: end,
       is_active: true,
+      max_score: maxScoreVal,
+      criteria: criteriaVal,
     });
 
     return await this.votingPeriodRepo.save(votingPeriod);

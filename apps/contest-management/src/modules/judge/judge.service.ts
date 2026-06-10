@@ -206,4 +206,35 @@ export class ContestJudgeService {
 
     return { message: "Contest judge and entry assignments removed successfully" };
   }
+
+  async getJudgeAssignments(judge_id: string, page: number = 1, limit: number = 10) {
+    const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
+
+    const qb = entryAssignmentRepo.createQueryBuilder("assignment")
+      .leftJoinAndSelect("assignment.contest", "contest")
+      .leftJoinAndSelect("assignment.entry", "entry")
+      .leftJoinAndSelect("entry.submission", "submission")
+      .where("assignment.judge_id = :judge_id", { judge_id });
+
+    qb.orderBy("assignment.assigned_at", "DESC");
+
+    qb.skip((page - 1) * limit);
+    qb.take(limit);
+
+    const [docs, totalDocs] = await qb.getManyAndCount();
+
+    const totalPages = Math.ceil(totalDocs / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      docs,
+      totalDocs,
+      page,
+      limit,
+      totalPages,
+      hasNextPage,
+      hasPrevPage,
+    };
+  }
 }
