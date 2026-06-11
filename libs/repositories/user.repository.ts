@@ -51,7 +51,7 @@ export class UserRepository {
     if (user.role === "admin") {
       return this.repo.findOne({
         where: { id },
-        relations: ["adminProfile"],
+        relations: ["adminProfile", "createdContests"],
       });
     }
 
@@ -65,6 +65,7 @@ export class UserRepository {
           "entryAssignments",
           "entryAssignments.entry",
           "entryAssignments.contest",
+          "createdContests",
         ],
       });
     }
@@ -73,7 +74,13 @@ export class UserRepository {
     if (user.role === "participant") {
       return this.repo.findOne({
         where: { id },
-        relations: ["participantProfile", "participantProfile.submission"],
+        relations: [
+          "participantProfile",
+          "participantProfile.submission",
+          "participants",
+          "participants.contest",
+          "createdContests",
+        ],
       });
     }
 
@@ -127,8 +134,13 @@ export class UserRepository {
 
     qb.leftJoinAndSelect("user.adminProfile", "adminProfile")
       .leftJoinAndSelect("user.judgeProfile", "judgeProfile")
+      .leftJoinAndSelect("judgeProfile.contestAssignments", "contestAssignments")
+      .leftJoinAndSelect("contestAssignments.contest", "judgeContest")
       .leftJoinAndSelect("user.participantProfile", "participantProfile")
-      .leftJoinAndSelect("participantProfile.submission", "submission");
+      .leftJoinAndSelect("participantProfile.submission", "submission")
+      .leftJoinAndSelect("user.participants", "participants")
+      .leftJoinAndSelect("participants.contest", "participantContest")
+      .leftJoinAndSelect("user.createdContests", "createdContests");
 
     qb.skip((page - 1) * limit);
     qb.take(limit);

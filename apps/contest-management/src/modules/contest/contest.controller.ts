@@ -1,15 +1,17 @@
 import { Request, Response } from "express";
 import { ContestService } from "./contest.service";
+import { AuthRequest } from "@libs/middlewares/auth.middleware";
 
 const service = new ContestService();
 
 type ContestParams = { id: string };
 
 export class ContestController {
-  create = async (req: Request, res: Response) => {
+  createContest = async (req: AuthRequest, res: Response) => {
     try {
-      const data = await service.createContest(req.body);
-      return res.status(201).json({ message: "Contest created", data });
+      const userId = req.user?.userId;
+      const data = await service.createContestService(req.body, userId);
+      return res.status(201).json({ message: "Contest created successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
     }
@@ -22,7 +24,7 @@ export class ContestController {
       const parsedLimit = limit ? parseInt(limit, 10) : 10;
 
       const data = await service.getContests(status, search, parsedPage, parsedLimit);
-      return res.status(200).json({ message: "Contests fetched", data });
+      return res.status(200).json({ message: "Contests fetched successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 500).json({ message: e.message });
     }

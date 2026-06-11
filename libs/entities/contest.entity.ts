@@ -3,7 +3,7 @@ import {
   CreateDateColumn, UpdateDateColumn,
   ManyToOne, OneToMany, JoinColumn,
 } from "typeorm";
-import { FormTemplate, Entry, Participant } from "@libs/entities";
+import { FormTemplate, Entry, Participant, User } from "@libs/entities";
 import { ContestJudge } from "@libs/entities/contest-judge.entity";
 import { VotingPeriod } from "./voting-period";
 import { EntryAssignment } from "./entry-assignment.entity";
@@ -76,6 +76,17 @@ export class Contest {
     (assignment) => assignment.contest,
   )
   entryAssignments!: EntryAssignment[];
+
+  @ManyToOne(() => User, {
+  nullable: true,
+  onDelete: "SET NULL",
+  eager: false,
+})
+@JoinColumn({ name: "created_by" })
+createdBy?: User;
+
+@Column({ type: "uuid", nullable: true })
+created_by?: string;
 
   @CreateDateColumn()
   created_at!: Date;

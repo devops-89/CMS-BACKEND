@@ -1,11 +1,14 @@
 import { Router } from "express";
 import { ContestController } from "./contest.controller";
+import { authorize } from "@libs/middlewares/role.middleware";
+import { authenticate } from "@libs/middlewares/auth.middleware";
+import { UserRole } from "@libs/entities";
 
 const router = Router();
 const controller = new ContestController();
 
 router.get("/", controller.getAll.bind(controller));
-router.post("/", controller.create.bind(controller));
+router.post("/", authenticate, authorize(UserRole.ADMIN), controller.createContest.bind(controller));
 
 router.get("/voting-period/:votingPeriodId", controller.getVotingPeriodDetail.bind(controller));
 router.put("/voting-period/:votingPeriodId", controller.updateVotingPeriod.bind(controller));

@@ -9,16 +9,19 @@ export class ContestService {
   private contestJudgeRepo = new ContestJudgeRepository();
   private judgeAssignedVotingPeriodRepo = new JudgeAssignedVotingPeriodRepository();
 
-   async createContest(payload: {
-    name: string;
-    description?: string;
-    start_date: string;
-    end_date: string;
-    available_regions?: string[];
-    status?: "Draft" | "Published" | "Offline";
-    entry_level_template_id?: string;
-    user_level_template_id?: string;
-  }) {
+   async createContestService(
+    payload: {
+      name: string;
+      description?: string;
+      start_date: string;
+      end_date: string;
+      available_regions?: string[];
+      status?: "Draft" | "Published" | "Offline";
+      entry_level_template_id?: string;
+      user_level_template_id?: string;
+    },
+    userId?: string
+  ) {
     // check duplicate name
     const existing = await this.repo.findByName(payload.name);
     if (existing) throw new ConflictError("Contest with this name already exists");
@@ -28,6 +31,7 @@ export class ContestService {
       start_date: new Date(payload.start_date),
       end_date: new Date(payload.end_date),
       status: payload.status ?? "Draft",
+      created_by: userId,
     });
     return await this.repo.save(contest);
   }
