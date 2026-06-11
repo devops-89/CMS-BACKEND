@@ -304,9 +304,8 @@ export class ContestJudgeService {
       if (scoreItem.score < 0 || scoreItem.score > 10) {
         throw new BadRequestError(`Score for '${scoreItem.description}' must be between 0 and 10`);
       }
-      // Calculate weighted score: (score / 10) * weighting
-      const weightedScore = (scoreItem.score / 10) * criterion.weighting;
-      totalScore += weightedScore;
+      // Add raw score directly to totalScore
+      totalScore += scoreItem.score;
       evaluationScores.push({
         description: scoreItem.description,
         score: scoreItem.score,
@@ -454,9 +453,8 @@ export class ContestJudgeService {
       if (scoreItem.score < 0 || scoreItem.score > 10) {
         throw new BadRequestError(`Score for '${scoreItem.description}' must be between 0 and 10`);
       }
-      // Calculate weighted score: (score / 10) * weighting
-      const weightedScore = (scoreItem.score / 10) * criterion.weighting;
-      totalScore += weightedScore;
+      // Add raw score directly to totalScore
+      totalScore += scoreItem.score;
       evaluationScores.push({
         description: scoreItem.description,
         score: scoreItem.score,
