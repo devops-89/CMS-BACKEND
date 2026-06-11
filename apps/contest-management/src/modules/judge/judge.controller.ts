@@ -88,4 +88,26 @@ export class ContestJudgeController {
       return res.status(e.statusCode || 400).json({ message: e.message });
     }
   };
+
+  getEvaluation = async (req: AuthRequest<{ entryId: string }>, res: Response) => {
+    try {
+      const judgeId = req.user!.userId;
+      const { entryId } = req.params;
+      const data = await service.getEvaluation(judgeId, entryId);
+      return res.status(200).json(data);
+    } catch (e: any) {
+      return res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
+  updateEvaluation = async (req: AuthRequest<{ entryId: string }>, res: Response) => {
+    try {
+      const judgeId = req.user!.userId;
+      const { entryId } = req.params;
+      const data = await service.updateEvaluation(judgeId, entryId, req.body);
+      return res.status(200).json(data);
+    } catch (e: any) {
+      return res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
 }
