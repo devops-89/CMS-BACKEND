@@ -13,6 +13,7 @@ const router = Router();
 const judgeController = new ContestJudgeController();
 
 router.get("/judges/my/entries", authenticate, authorize(UserRole.JUDGE), judgeController.getMyEntries.bind(judgeController));
+router.post("/judges/my/entries/:entryId/evaluate", authenticate, authorize(UserRole.JUDGE), judgeController.evaluateEntry.bind(judgeController));
 
 router.use("/",authenticate, authorize(UserRole.ADMIN), contestRoutes);
 router.use("/:contestId/participants",authenticate, authorize(UserRole.ADMIN), participantRoutes);

@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
-import { User, VotingPeriod, RefreshToken, EntryAssignment, Otp, ParticipantProfile, JudgeProfile, AdminProfile, FormTemplate, FormSubmission, Contest, Entry, Participant, Vote, ContestJudge, JudgeAssignedVotingPeriod } from "../entities";
+import { User, VotingPeriod, RefreshToken, EntryAssignment, Otp, ParticipantProfile, JudgeProfile, AdminProfile, FormTemplate, FormSubmission, Contest, Entry, Participant, Vote, ContestJudge, JudgeAssignedVotingPeriod, JudgeEvaluationHistory, JudgeEvaluation } from "../entities";
 
 
 export const AppDataSource = new DataSource({
@@ -27,7 +27,9 @@ export const AppDataSource = new DataSource({
     Vote,
     VotingPeriod,
     EntryAssignment,
-    JudgeAssignedVotingPeriod
+    JudgeAssignedVotingPeriod,
+    JudgeEvaluation,
+    JudgeEvaluationHistory
   ],
   migrations: ["libs/database/migrations/*.ts"],
 

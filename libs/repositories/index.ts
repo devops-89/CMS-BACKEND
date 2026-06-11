@@ -12,3 +12,5 @@ export * from "./entry.repository";
 export * from "./voting-period.repository";
 export * from "./contest-judge.repository";
 export * from "./judge-assigned-voting-period.repository";
+export * from "./judge-evaluation.repository";
+export * from "./judge-evaluation-history.repository";
