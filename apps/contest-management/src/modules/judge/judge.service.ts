@@ -1,8 +1,8 @@
 import { ContestJudgeRepository } from "@libs/repositories/contest-judge.repository";
 import { ContestRepository, JudgeProfileRepository } from "@libs/repositories";
-import { NotFoundError, ConflictError, InternalServerError } from "@libs/utils/errors.util";
+import { NotFoundError, ConflictError, InternalServerError, BadRequestError } from "@libs/utils/errors.util";
 import { AppDataSource } from "@libs/database/data-source";
-import { EntryAssignment, EntryAssignmentStatus, UserStatus } from "@libs/entities";
+import { EntryAssignment, EntryAssignmentStatus, UserStatus, Entry, VotingPeriod, VotingType, JudgeEvaluation, JudgeEvaluationHistory } from "@libs/entities";
 
 export class ContestJudgeService {
   private repo = new ContestJudgeRepository();
@@ -236,6 +236,266 @@ export class ContestJudgeService {
       totalPages,
       hasNextPage,
       hasPrevPage,
+    };
+  }
+
+  async evaluateEntry(
+    judgeUserId: string,
+    entryId: string,
+    payload: {
+      scores: { description: string; score: number }[];
+      feedback?: string;
+    }
+  ) {
+    const entryRepo = AppDataSource.getRepository(Entry);
+    const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
+    const votingPeriodRepo = AppDataSource.getRepository(VotingPeriod);
+    const evaluationRepo = AppDataSource.getRepository(JudgeEvaluation);
+    const historyRepo = AppDataSource.getRepository(JudgeEvaluationHistory);
+
+    // 1. Fetch entry and check assignment
+    const entry = await entryRepo.findOne({
+      where: { id: entryId },
+    });
+    if (!entry) throw new NotFoundError("Entry not found");
+
+    const contestId = entry.contest_id;
+
+    // Check if the judge is assigned to this entry
+    const assignment = await entryAssignmentRepo.findOne({
+      where: { entry_id: entryId, judge_id: judgeUserId },
+    });
+    if (!assignment) {
+      throw new BadRequestError("Judge is not assigned to this entry");
+    }
+
+    // 2. Fetch the active voting period of type JUDGE for the contest
+    const now = new Date();
+    const votingPeriod = await votingPeriodRepo.findOne({
+      where: {
+        contest_id: contestId,
+        voting_type: VotingType.JUDGE,
+        is_active: true,
+      },
+    });
+
+    if (!votingPeriod) {
+      throw new NotFoundError("Active judging voting period not found for this contest");
+    }
+
+    if (now < votingPeriod.start_date || now > votingPeriod.end_date) {
+      throw new ConflictError("Judging voting period is not active currently");
+    }
+
+    // 3. Validate criteria scores and compute total score
+    if (!payload.scores || !Array.isArray(payload.scores)) {
+      throw new BadRequestError("Invalid scores payload");
+    }
+
+    const criteria = votingPeriod.criteria || [];
+    let totalScore = 0;
+    const evaluationScores: { description: string; score: number; weighting: number }[] = [];
+
+    for (const scoreItem of payload.scores) {
+      const criterion = criteria.find((c) => c.description === scoreItem.description);
+      if (!criterion) {
+        throw new BadRequestError(`Criterion '${scoreItem.description}' is not valid for this contest's voting period`);
+      }
+      if (scoreItem.score < 0 || scoreItem.score > 10) {
+        throw new BadRequestError(`Score for '${scoreItem.description}' must be between 0 and 10`);
+      }
+      // Calculate weighted score: (score / 10) * weighting
+      const weightedScore = (scoreItem.score / 10) * criterion.weighting;
+      totalScore += weightedScore;
+      evaluationScores.push({
+        description: scoreItem.description,
+        score: scoreItem.score,
+        weighting: criterion.weighting,
+      });
+    }
+
+    // Check if all criteria from the voting period were scored
+    if (evaluationScores.length !== criteria.length) {
+      throw new BadRequestError("All criteria defined in the voting period must be scored");
+    }
+
+    // 4. Save/Update JudgeEvaluation record and track history
+    let evaluation = await evaluationRepo.findOne({
+      where: { entry_id: entryId, judge_id: judgeUserId, voting_period_id: votingPeriod.id },
+    });
+
+    if (evaluation) {
+      evaluation.scores = evaluationScores;
+      evaluation.total_score = totalScore;
+      evaluation.max_score = votingPeriod.max_score;
+      evaluation.feedback = payload.feedback || null;
+      evaluation = await evaluationRepo.save(evaluation);
+    } else {
+      evaluation = evaluationRepo.create({
+        entry_id: entryId,
+        judge_id: judgeUserId,
+        contest_id: contestId,
+        voting_period_id: votingPeriod.id,
+        scores: evaluationScores,
+        total_score: totalScore,
+        max_score: votingPeriod.max_score,
+        feedback: payload.feedback || null,
+      });
+      evaluation = await evaluationRepo.save(evaluation);
+    }
+
+    // Create history record
+    const history = historyRepo.create({
+      evaluation_id: evaluation.id,
+      scores: evaluationScores,
+      total_score: totalScore,
+      max_score: votingPeriod.max_score,
+      feedback: payload.feedback || null,
+    });
+    await historyRepo.save(history);
+
+    // 5. Update EntryAssignment status, score, and feedback
+    assignment.status = EntryAssignmentStatus.REVIEWED;
+    assignment.score = totalScore;
+    assignment.feedback = payload.feedback || null;
+    assignment.reviewed_at = now;
+    await entryAssignmentRepo.save(assignment);
+
+    return {
+      message: "Evaluation submitted successfully",
+      evaluation,
+    };
+  }
+
+  async getEvaluation(judgeUserId: string, entryId: string) {
+    const evaluationRepo = AppDataSource.getRepository(JudgeEvaluation);
+    const evaluation = await evaluationRepo.findOne({
+      where: { entry_id: entryId, judge_id: judgeUserId },
+      relations: ["entry", "judge", "contest", "votingPeriod"],
+    });
+
+    if (!evaluation) {
+      throw new NotFoundError("Evaluation not found");
+    }
+
+    return evaluation;
+  }
+
+  async updateEvaluation(
+    judgeUserId: string,
+    entryId: string,
+    payload: {
+      scores: { description: string; score: number }[];
+      feedback?: string;
+    }
+  ) {
+    const entryRepo = AppDataSource.getRepository(Entry);
+    const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
+    const votingPeriodRepo = AppDataSource.getRepository(VotingPeriod);
+    const evaluationRepo = AppDataSource.getRepository(JudgeEvaluation);
+    const historyRepo = AppDataSource.getRepository(JudgeEvaluationHistory);
+
+    // 1. Fetch entry and check assignment
+    const entry = await entryRepo.findOne({
+      where: { id: entryId },
+    });
+    if (!entry) throw new NotFoundError("Entry not found");
+
+    const contestId = entry.contest_id;
+
+    // Check if the judge is assigned to this entry
+    const assignment = await entryAssignmentRepo.findOne({
+      where: { entry_id: entryId, judge_id: judgeUserId },
+    });
+    if (!assignment) {
+      throw new BadRequestError("Judge is not assigned to this entry");
+    }
+
+    // 2. Fetch the active voting period of type JUDGE for the contest
+    const now = new Date();
+    const votingPeriod = await votingPeriodRepo.findOne({
+      where: {
+        contest_id: contestId,
+        voting_type: VotingType.JUDGE,
+        is_active: true,
+      },
+    });
+
+    if (!votingPeriod) {
+      throw new NotFoundError("Active judging voting period not found for this contest");
+    }
+
+    if (now < votingPeriod.start_date || now > votingPeriod.end_date) {
+      throw new ConflictError("Judging voting period is not active currently");
+    }
+
+    // 3. Find existing evaluation
+    let evaluation = await evaluationRepo.findOne({
+      where: { entry_id: entryId, judge_id: judgeUserId, voting_period_id: votingPeriod.id },
+    });
+    if (!evaluation) {
+      throw new NotFoundError("Evaluation not found");
+    }
+
+    // 4. Validate criteria scores and compute total score
+    if (!payload.scores || !Array.isArray(payload.scores)) {
+      throw new BadRequestError("Invalid scores payload");
+    }
+
+    const criteria = votingPeriod.criteria || [];
+    let totalScore = 0;
+    const evaluationScores: { description: string; score: number; weighting: number }[] = [];
+
+    for (const scoreItem of payload.scores) {
+      const criterion = criteria.find((c) => c.description === scoreItem.description);
+      if (!criterion) {
+        throw new BadRequestError(`Criterion '${scoreItem.description}' is not valid for this contest's voting period`);
+      }
+      if (scoreItem.score < 0 || scoreItem.score > 10) {
+        throw new BadRequestError(`Score for '${scoreItem.description}' must be between 0 and 10`);
+      }
+      // Calculate weighted score: (score / 10) * weighting
+      const weightedScore = (scoreItem.score / 10) * criterion.weighting;
+      totalScore += weightedScore;
+      evaluationScores.push({
+        description: scoreItem.description,
+        score: scoreItem.score,
+        weighting: criterion.weighting,
+      });
+    }
+
+    // Check if all criteria from the voting period were scored
+    if (evaluationScores.length !== criteria.length) {
+      throw new BadRequestError("All criteria defined in the voting period must be scored");
+    }
+
+    // 5. Update evaluation
+    evaluation.scores = evaluationScores;
+    evaluation.total_score = totalScore;
+    evaluation.max_score = votingPeriod.max_score;
+    evaluation.feedback = payload.feedback || null;
+    evaluation = await evaluationRepo.save(evaluation);
+
+    // Create history record
+    const history = historyRepo.create({
+      evaluation_id: evaluation.id,
+      scores: evaluationScores,
+      total_score: totalScore,
+      max_score: votingPeriod.max_score,
+      feedback: payload.feedback || null,
+    });
+    await historyRepo.save(history);
+
+    // 6. Update EntryAssignment status, score, and feedback
+    assignment.status = EntryAssignmentStatus.REVIEWED;
+    assignment.score = totalScore;
+    assignment.feedback = payload.feedback || null;
+    assignment.reviewed_at = now;
+    await entryAssignmentRepo.save(assignment);
+
+    return {
+      message: "Evaluation updated successfully",
+      evaluation,
     };
   }
 }
