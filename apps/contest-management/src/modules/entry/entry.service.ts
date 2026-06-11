@@ -2,6 +2,7 @@ import {
   EntryRepository,
   ContestRepository,
   FormSubmissionRepository,
+  VotingPeriodRepository,
 } from "@libs/repositories";
 
 import { NotFoundError, InternalServerError } from "@libs/utils/errors.util";
@@ -10,6 +11,7 @@ export class EntryService {
   private repo = new EntryRepository();
   private contestRepo = new ContestRepository();
   private submissionRepo = new FormSubmissionRepository();
+  private votingPeriodRepo = new VotingPeriodRepository();
 
   async createEntry(
     contest_id: string,
@@ -54,7 +56,11 @@ export class EntryService {
   async getEntryById(id: string, contest_id: string) {
     const entry = await this.repo.findById(id, contest_id);
     if (!entry) throw new NotFoundError("Entry not found");
-    return entry;
+    const votingPeriods = await this.votingPeriodRepo.findByContestId(contest_id);
+    return {
+      ...entry,
+      votingPeriods,
+    };
   }
 
   async updateStatus(
