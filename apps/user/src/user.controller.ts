@@ -77,7 +77,7 @@ export class UserController {
 }
 
   // get all users with role filter
- async getUsers(
+ async getAllUsers(
   req: AuthRequest,
   res: Response
 ) {

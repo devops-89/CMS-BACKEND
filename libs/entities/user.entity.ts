@@ -6,6 +6,7 @@ import { ParticipantProfile } from "./participant-profile.entity";
 import { Participant } from "./participant.entity";
 import { EntryAssignment } from "./entry-assignment.entity";
 import { FormTemplate } from "./form-template.entity";
+import { Contest } from "./contest.entity";
 
 export enum UserRole {
   ADMIN = "admin",
@@ -107,6 +108,9 @@ formTemplate?: FormTemplate;
 
 @Column({ nullable: true })
 form_template_id?: string;
+
+@OneToMany(() => Contest, (contest) => contest.createdBy)
+createdContests?: Contest[];
 
   @CreateDateColumn()
   created_at!: Date;

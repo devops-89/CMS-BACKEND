@@ -26,7 +26,7 @@ router.patch(
 );
 
 // get users , filter by role
-router.get("/all",authenticate,authorize(UserRole.ADMIN), validate(getUsersQuerySchema,"query"),controller.getUsers.bind(controller));
+router.get("/all",authenticate,authorize(UserRole.ADMIN), validate(getUsersQuerySchema,"query"),controller.getAllUsers.bind(controller));
 
 // get user by id
 router.get("/:id", authenticate,authorize(UserRole.ADMIN), validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
