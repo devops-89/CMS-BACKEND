@@ -212,6 +212,7 @@ export class ContestJudgeService {
 
     const qb = entryAssignmentRepo.createQueryBuilder("assignment")
       .leftJoinAndSelect("assignment.contest", "contest")
+      .leftJoinAndSelect("contest.votingPeriods", "votingPeriods")
       .leftJoinAndSelect("assignment.entry", "entry")
       .leftJoinAndSelect("entry.submission", "submission")
       .where("assignment.judge_id = :judge_id", { judge_id });
