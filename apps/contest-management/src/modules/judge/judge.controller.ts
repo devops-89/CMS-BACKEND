@@ -93,7 +93,7 @@ export class ContestJudgeController {
     try {
       const judgeId = req.user!.userId;
       const { entryId } = req.params;
-      const data = await service.getEvaluation(judgeId, entryId);
+      const data = await service.getEvaluationService(judgeId, entryId);
       return res.status(200).json(data);
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });

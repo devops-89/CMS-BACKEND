@@ -372,7 +372,7 @@ export class ContestJudgeService {
     };
   }
 
-  async getEvaluation(judgeUserId: string, entryId: string) {
+  async getEvaluationService(judgeUserId: string, entryId: string) {
     const evaluationRepo = AppDataSource.getRepository(JudgeEvaluation);
     const historyRepo = AppDataSource.getRepository(JudgeEvaluationHistory);
 
