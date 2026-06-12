@@ -82,7 +82,7 @@ export class ContestJudgeController {
     try {
       const judgeId = req.user!.userId;
       const { entryId } = req.params;
-      const data = await service.evaluateEntry(judgeId, entryId, req.body);
+      const data = await service.evaluateEntryService(judgeId, entryId, req.body);
       return res.status(200).json(data);
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
@@ -104,7 +104,7 @@ export class ContestJudgeController {
     try {
       const judgeId = req.user!.userId;
       const { entryId } = req.params;
-      const data = await service.updateEvaluation(judgeId, entryId, req.body);
+      const data = await service.updateEvaluationService(judgeId, entryId, req.body);
       return res.status(200).json(data);
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });

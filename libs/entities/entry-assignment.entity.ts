@@ -22,6 +22,7 @@ export enum EntryAssignmentStatus {
     IN_REVIEW = "in_review",
     REVIEWED = "reviewed",
     REJECTED = "rejected",
+    EVALUATED = "evaluated",
 }
 
 @Entity("entry_assignments")

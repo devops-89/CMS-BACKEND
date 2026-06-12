@@ -239,7 +239,7 @@ export class ContestJudgeService {
     };
   }
 
-  async evaluateEntry(
+  async evaluateEntryService(
     judgeUserId: string,
     entryId: string,
     payload: {
@@ -354,7 +354,7 @@ export class ContestJudgeService {
     await historyRepo.save(history);
 
     // 5. Update EntryAssignment status, score, and feedback
-    assignment.status = EntryAssignmentStatus.REVIEWED;
+    assignment.status = EntryAssignmentStatus.EVALUATED;
     assignment.score = totalScore;
     assignment.feedback = payload.feedback || null;
     assignment.reviewed_at = now;
@@ -380,7 +380,7 @@ export class ContestJudgeService {
     return evaluation;
   }
 
-  async updateEvaluation(
+  async updateEvaluationService(
     judgeUserId: string,
     entryId: string,
     payload: {
