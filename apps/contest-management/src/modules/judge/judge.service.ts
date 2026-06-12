@@ -360,6 +360,12 @@ export class ContestJudgeService {
     assignment.reviewed_at = now;
     await entryAssignmentRepo.save(assignment);
 
+    // Update Entry score
+    if ("score" in entry) {
+      entry.score = totalScore;
+      await entryRepo.save(entry);
+    }
+
     return {
       message: "Evaluation submitted successfully",
       evaluation,
@@ -368,6 +374,8 @@ export class ContestJudgeService {
 
   async getEvaluation(judgeUserId: string, entryId: string) {
     const evaluationRepo = AppDataSource.getRepository(JudgeEvaluation);
+    const historyRepo = AppDataSource.getRepository(JudgeEvaluationHistory);
+
     const evaluation = await evaluationRepo.findOne({
       where: { entry_id: entryId, judge_id: judgeUserId },
       relations: ["entry", "judge", "contest", "votingPeriod"],
@@ -377,7 +385,15 @@ export class ContestJudgeService {
       throw new NotFoundError("Evaluation not found");
     }
 
-    return evaluation;
+    const history = await historyRepo.find({
+      where: { evaluation_id: evaluation.id },
+      order: { created_at: "DESC" },
+    });
+
+    return {
+      ...evaluation,
+      history,
+    };
   }
 
   async updateEvaluationService(
@@ -485,11 +501,17 @@ export class ContestJudgeService {
     await historyRepo.save(history);
 
     // 6. Update EntryAssignment status, score, and feedback
-    assignment.status = EntryAssignmentStatus.REVIEWED;
+    assignment.status = EntryAssignmentStatus.EVALUATED;
     assignment.score = totalScore;
     assignment.feedback = payload.feedback || null;
     assignment.reviewed_at = now;
     await entryAssignmentRepo.save(assignment);
+
+    // Update Entry score
+    if ("score" in entry) {
+      entry.score = totalScore;
+      await entryRepo.save(entry);
+    }
 
     return {
       message: "Evaluation updated successfully",
