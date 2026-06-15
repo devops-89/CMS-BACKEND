@@ -196,7 +196,7 @@ async updateUserDetails(req: AuthRequest<{ id: string }, {}, updateUserDto>, res
 // Create participant with pending status and trigger OTP email
 async createParticipant(req: Request<{}, {}, createParticipantDto>, res: Response) {
     try {
-        const user = await this.userService.createParticipant(req.body);
+        const user = await this.userService.createParticipantService(req.body);
         return res.status(201).json({
             message: "Participant registered successfully. Please verify the OTP sent to your email.",
             data: {
@@ -218,7 +218,7 @@ async createParticipant(req: Request<{}, {}, createParticipantDto>, res: Respons
 // Verify participant OTP and activate account
 async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Response) {
     try {
-        const user = await this.userService.verifyParticipant(req.body);
+        const user = await this.userService.verifyParticipantService(req.body);
         return res.status(200).json({
             message: "Participant account activated successfully.",
             data: {

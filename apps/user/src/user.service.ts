@@ -3,6 +3,8 @@ import {
   ParticipantProfileRepository,
   UserRepository,
   OtpsRepository,
+  FormTemplateRepository,
+  CountryRepository,
 } from "@libs/repositories";
 import { UserRole, UserStatus } from "@libs/entities";
 import { NotificationService } from "@libs/notifications/notification.service";
@@ -13,24 +15,76 @@ export class UserService {
   private userRepo = new UserRepository();
   private participantRepo = new ParticipantProfileRepository();
   private otpRepo = new OtpsRepository();
+  private formTemplateRepo = new FormTemplateRepository();
+  private countryRepo = new CountryRepository();
   private notificationService = new NotificationService();
 
-  async createParticipant(payload: createParticipantDto) {
-    const { firstName, lastName, email, password } = payload;
+  async createParticipantService(payload: createParticipantDto) {
+    const { templateId, countryId, formData } = payload;
 
-    // 1. Check if user already exists
+    // 1. Validate that the country exists
+    const country = await this.countryRepo.findById(countryId);
+    if (!country) {
+      throw new BadRequestError("Invalid country ID");
+    }
+
+    // 2. Fetch the FormTemplate
+    const template = await this.formTemplateRepo.findById(templateId);
+    if (!template) {
+      throw new NotFoundError("Form template not found");
+    }
+
+    // 3. Extract credentials dynamically based on field labels
+    const fields = template.schema.fields;
+    let firstName = "";
+    let lastName = "";
+    let email = "";
+    let password = "";
+
+    for (const field of fields) {
+      const value = formData[field.id];
+      if (value === undefined || value === null) continue;
+
+      const label = field.label.trim().toLowerCase();
+
+      if (label === "firstname" || label === "first name" || label.includes("firstname")) {
+        firstName = String(value);
+      } else if (label === "lastname" || label === "last name" || label.includes("lastname")) {
+        lastName = String(value);
+      } else if (label === "mail" || label === "email" || label.includes("mail") || label.includes("email")) {
+        email = String(value);
+      } else if (label === "password" || label.includes("password")) {
+        password = String(value);
+      }
+    }
+
+    // 4. Validate that all required signup fields were mapped successfully
+    if (!firstName) {
+      throw new BadRequestError("Firstname is required based on the registration form");
+    }
+    if (!lastName) {
+      throw new BadRequestError("Lastname is required based on the registration form");
+    }
+    if (!email) {
+      throw new BadRequestError("Mail/Email is required based on the registration form");
+    }
+    if (!password) {
+      throw new BadRequestError("Password is required based on the registration form");
+    }
+
+    // 5. Check if user already exists
     const existingUser = await this.userRepo.findByEmail(email);
     if (existingUser) {
       throw new ConflictError("User already exists");
     }
 
-    // 2. Hash password
+    // 6. Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // 3. Merge first name and last name into full name
+    // 7. Merge first name and last name into full name
     const fullName = `${firstName} ${lastName}`.trim();
 
-    // 4. Create user in PENDING status
+    // 8. Create user in PENDING status
     const user = await this.userRepo.createUser({
       email,
       password: hashedPassword,
@@ -39,12 +93,13 @@ export class UserService {
       firstName,
       lastName,
       fullName,
+      countryId,
     });
 
-    // 5. Create Participant Profile
+    // 9. Create Participant Profile
     await this.participantRepo.createProfile({ user });
 
-    // 6. Generate and save OTP linked to the user's UUID
+    // 10. Generate and save OTP linked to the user's UUID
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedOtp = await bcrypt.hash(otp, 10);
 
@@ -61,7 +116,7 @@ export class UserService {
     return user;
   }
 
-  async verifyParticipant(payload: verifyParticipantDto) {
+  async verifyParticipantService(payload: verifyParticipantDto) {
     const { email, otp } = payload;
 
     // 1. Fetch the user by email

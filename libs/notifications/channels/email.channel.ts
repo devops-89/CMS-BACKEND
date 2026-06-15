@@ -8,7 +8,7 @@ export class EmailChannel{
         const html=await render(template);
 
         await resend.emails.send({
-            from:"onboarding@resend.dev",
+            from: process.env.MAIL_FROM || "onboarding@resend.dev",
             to:[to],
             subject,
             html
