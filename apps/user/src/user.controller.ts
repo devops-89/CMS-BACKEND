@@ -15,14 +15,18 @@ import {
   updateAvatarDto,
   updateUserStatusDto,
   updateUserDto,
+  sendOtpDto,
+  createParticipantDto,
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
+import { UserService } from "./user.service";
 
 export class UserController {
   private userRepo = new UserRepository();
   private adminRepo = new AdminProfileRepository();
   private judgeRepo = new JudgeProfileRepository();
   private participantRepo = new ParticipantProfileRepository();
+  private userService = new UserService();
 
 
 
@@ -189,6 +193,42 @@ async updateUserDetails(req: AuthRequest<{ id: string }, {}, updateUserDto>, res
     }
 }
 
+// Send OTP for participant registration
+async sendOtp(req: Request<{}, {}, sendOtpDto>, res: Response) {
+    try {
+        const { email } = req.body;
+        await this.userService.sendOtp(email);
+        return res.status(200).json({
+            message: "OTP sent successfully",
+        });
+    } catch (error: any) {
+        return res.status(error.statusCode || 500).json({
+            message: "Failed to send OTP",
+            error: error.message,
+        });
+    }
+}
+
+// Create participant with OTP verification
+async createParticipant(req: Request<{}, {}, createParticipantDto>, res: Response) {
+    try {
+        const user = await this.userService.createParticipant(req.body);
+        return res.status(201).json({
+            message: "Participant created successfully.",
+            data: {
+                userId: user.id,
+                email: user.email,
+                fullName: user.fullName,
+                role: user.role,
+            },
+        });
+    } catch (error: any) {
+        return res.status(error.statusCode || 500).json({
+            message: "Failed to create participant!",
+            error: error.message,
+        });
+    }
+}
 
 }
 
