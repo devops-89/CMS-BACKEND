@@ -29,7 +29,7 @@ export class CountryController {
     }
   };
 
-  getOne = async (req: Request, res: Response) => {
+  getOne = async (req: Request<{ id: string }>, res: Response) => {
     try {
       const id = parseInt(req.params.id, 10);
       const country = await this.service.getCountryById(id);

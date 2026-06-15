@@ -152,6 +152,9 @@ export class UserService {
 
     // 7. Update user status to ACTIVE
     const updatedUser = await this.userRepo.updateUserStatus(user.id, UserStatus.ACTIVE);
+    if (!updatedUser) {
+      throw new NotFoundError("User not found after activation");
+    }
 
     return updatedUser;
   }
