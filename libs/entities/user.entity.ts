@@ -7,6 +7,7 @@ import { Participant } from "./participant.entity";
 import { EntryAssignment } from "./entry-assignment.entity";
 import { FormTemplate } from "./form-template.entity";
 import { Contest } from "./contest.entity";
+import { Country } from "./country.entity";
 
 export enum UserRole {
   ADMIN = "admin",
@@ -45,6 +46,16 @@ export class User {
 
   @Column({ nullable: true })
   fullName?: string;
+
+  @Column({ nullable: true })
+countryId?: number;
+
+@ManyToOne(() => Country, (country) => country.users, {
+  nullable: true,
+  onDelete: "SET NULL",
+})
+@JoinColumn({ name: "countryId" })
+country?: Country;
 
   @Column({ nullable: true })
   phone?: string;
