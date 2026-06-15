@@ -15,7 +15,7 @@ import {
   updateAvatarDto,
   updateUserStatusDto,
   updateUserDto,
-  sendOtpDto,
+  verifyParticipantDto,
   createParticipantDto,
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
@@ -193,38 +193,45 @@ async updateUserDetails(req: AuthRequest<{ id: string }, {}, updateUserDto>, res
     }
 }
 
-// Send OTP for participant registration
-async sendOtp(req: Request<{}, {}, sendOtpDto>, res: Response) {
-    try {
-        const { email } = req.body;
-        await this.userService.sendOtp(email);
-        return res.status(200).json({
-            message: "OTP sent successfully",
-        });
-    } catch (error: any) {
-        return res.status(error.statusCode || 500).json({
-            message: "Failed to send OTP",
-            error: error.message,
-        });
-    }
-}
-
-// Create participant with OTP verification
+// Create participant with pending status and trigger OTP email
 async createParticipant(req: Request<{}, {}, createParticipantDto>, res: Response) {
     try {
         const user = await this.userService.createParticipant(req.body);
         return res.status(201).json({
-            message: "Participant created successfully.",
+            message: "Participant registered successfully. Please verify the OTP sent to your email.",
             data: {
                 userId: user.id,
                 email: user.email,
                 fullName: user.fullName,
                 role: user.role,
+                status: user.status,
             },
         });
     } catch (error: any) {
         return res.status(error.statusCode || 500).json({
             message: "Failed to create participant!",
+            error: error.message,
+        });
+    }
+}
+
+// Verify participant OTP and activate account
+async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Response) {
+    try {
+        const user = await this.userService.verifyParticipant(req.body);
+        return res.status(200).json({
+            message: "Participant account activated successfully.",
+            data: {
+                userId: user.id,
+                email: user.email,
+                fullName: user.fullName,
+                role: user.role,
+                status: user.status,
+            },
+        });
+    } catch (error: any) {
+        return res.status(error.statusCode || 500).json({
+            message: "Verification failed!",
             error: error.message,
         });
     }

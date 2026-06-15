@@ -44,15 +44,6 @@ export const updateUserSchema = z.object({
 
 export type updateUserDto = z.infer<typeof updateUserSchema>;
 
-export const sendOtpSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Please enter a valid email address"),
-});
-
-export type sendOtpDto = z.infer<typeof sendOtpSchema>;
-
 export const createParticipantSchema = z.object({
   firstName: z
     .string()
@@ -73,10 +64,18 @@ export const createParticipantSchema = z.object({
     .string()
     .min(6, "Password must be at least 6 characters")
     .max(20, "Password cannot exceed 20 characters"),
+});
 
+export type createParticipantDto = z.infer<typeof createParticipantSchema>;
+
+export const verifyParticipantSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
   otp: z
     .string()
     .regex(/^\d{6}$/, "OTP must be a 6-digit number"),
 });
 
-export type createParticipantDto = z.infer<typeof createParticipantSchema>;
+export type verifyParticipantDto = z.infer<typeof verifyParticipantSchema>;

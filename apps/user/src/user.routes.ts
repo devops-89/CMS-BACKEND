@@ -5,7 +5,7 @@ import { validate } from "@libs/middlewares/validate.middleware";
 import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
 
-import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, sendOtpSchema, createParticipantSchema } from "@libs/dto/user.dto";
+import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema } from "@libs/dto/user.dto";
 
 const router=Router();
 
@@ -44,10 +44,10 @@ router.put(
 // delete user by id
 router.delete("/:id", authenticate, authorize(UserRole.ADMIN), validate(deleteUserByIdSchema, "params"), controller.deleteUserById.bind(controller));
 
-// send OTP for participant registration
-router.post("/send-otp", validate(sendOtpSchema, "body"), controller.sendOtp.bind(controller));
-
-// create participant with OTP verification
+// create participant
 router.post("/create-participant", validate(createParticipantSchema, "body"), controller.createParticipant.bind(controller));
+
+// verify participant account with OTP
+router.post("/verify-otp", validate(verifyParticipantSchema, "body"), controller.verifyParticipant.bind(controller));
 
 export default router;
