@@ -55,7 +55,7 @@ export class ContestRepository {
   findById(id: string) {
     return this.repo.findOne({
       where: { id },
-      relations: ["formTemplate"],
+      relations: ["formTemplate", "userLevelTemplate", "entryLevelTemplate"],
     });
   }
 

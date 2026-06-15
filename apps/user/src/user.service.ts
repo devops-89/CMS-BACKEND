@@ -5,6 +5,7 @@ import {
   OtpsRepository,
   FormTemplateRepository,
   CountryRepository,
+  ContestRepository,
 } from "@libs/repositories";
 import { UserRole, UserStatus } from "@libs/entities";
 import { NotificationService } from "@libs/notifications/notification.service";
@@ -17,10 +18,11 @@ export class UserService {
   private otpRepo = new OtpsRepository();
   private formTemplateRepo = new FormTemplateRepository();
   private countryRepo = new CountryRepository();
+  private contestRepo = new ContestRepository();
   private notificationService = new NotificationService();
 
   async createParticipantService(payload: createParticipantDto) {
-    const { templateId, countryId, formData } = payload;
+    const { contestId, countryId, formData } = payload;
 
     // 1. Validate that the country exists
     const country = await this.countryRepo.findById(countryId);
@@ -28,18 +30,26 @@ export class UserService {
       throw new BadRequestError("Invalid country ID");
     }
 
-    // 2. Fetch the FormTemplate
-    const template = await this.formTemplateRepo.findById(templateId);
-    if (!template) {
-      throw new NotFoundError("Form template not found");
+    // 2. Fetch the Contest
+    const contest = await this.contestRepo.findById(contestId);
+    if (!contest) {
+      throw new NotFoundError("Contest not found");
     }
 
-    // 3. Extract credentials dynamically based on field labels
+    // 3. Fetch the associated user level template from the contest
+    const template = contest.userLevelTemplate;
+    if (!template) {
+      throw new NotFoundError("User registration form template not configured for this contest");
+    }
+
+    // 4. Extract credentials dynamically based on field labels
     const fields = template.schema.fields;
     let firstName = "";
     let lastName = "";
     let email = "";
     let password = "";
+    let phone = "";
+    let dateOfBirthStr = "";
 
     for (const field of fields) {
       const value = formData[field.id];
@@ -55,36 +65,39 @@ export class UserService {
         email = String(value);
       } else if (label === "password" || label.includes("password")) {
         password = String(value);
+      } else if (label === "phone" || label === "phone number" || label.includes("phone") || label.includes("mobile")) {
+        phone = String(value);
+      } else if (label === "date of birth" || label === "dob" || label === "birthdate" || label.includes("birth")) {
+        dateOfBirthStr = String(value);
       }
     }
 
-    // 4. Validate that all required signup fields were mapped successfully
-    if (!firstName) {
-      throw new BadRequestError("Firstname is required based on the registration form");
-    }
-    if (!lastName) {
-      throw new BadRequestError("Lastname is required based on the registration form");
-    }
+    // Ensure strings are set to empty strings rather than undefined if missing
+    firstName = firstName || "";
+    lastName = lastName || "";
+    phone = phone || "";
+
+    // 5. Validate that critical credentials (email and password) are present
     if (!email) {
-      throw new BadRequestError("Mail/Email is required based on the registration form");
+      throw new BadRequestError("Mail/Email field is required");
     }
     if (!password) {
-      throw new BadRequestError("Password is required based on the registration form");
+      throw new BadRequestError("Password field is required");
     }
 
-    // 5. Check if user already exists
+    // 6. Check if user already exists
     const existingUser = await this.userRepo.findByEmail(email);
     if (existingUser) {
       throw new ConflictError("User already exists");
     }
 
-    // 6. Hash password
+    // 7. Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // 7. Merge first name and last name into full name
+    // 8. Merge first name and last name into full name
     const fullName = `${firstName} ${lastName}`.trim();
 
-    // 8. Create user in PENDING status
+    // 9. Create user in PENDING status
     const user = await this.userRepo.createUser({
       email,
       password: hashedPassword,
@@ -93,13 +106,18 @@ export class UserService {
       firstName,
       lastName,
       fullName,
+      phone,
       countryId,
     });
 
-    // 9. Create Participant Profile
-    await this.participantRepo.createProfile({ user });
+    // 10. Create Participant Profile
+    const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
+    await this.participantRepo.createProfile({
+      user,
+      dateOfBirth: dob as Date,
+    });
 
-    // 10. Generate and save OTP linked to the user's UUID
+    // 11. Generate and save OTP linked to the user's UUID
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedOtp = await bcrypt.hash(otp, 10);
 
@@ -111,7 +129,7 @@ export class UserService {
     await this.otpRepo.createOtp(user.id, hashedOtp, expires);
 
     // Send OTP via email
-    await this.notificationService.sendOtp(email, otp, firstName);
+    await this.notificationService.sendOtp(email, otp, firstName || "Participant");
 
     return user;
   }
