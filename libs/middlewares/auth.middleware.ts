@@ -29,7 +29,8 @@ export const authenticate=(req:AuthRequest, res:Response, next:NextFunction)=>{
 
         next();
      }
-     catch {
+     catch(err){
+        console.log("Error in the authenticate middleware=",err);
         return res.status(401).json({
             message:"Invalid Token"
         })

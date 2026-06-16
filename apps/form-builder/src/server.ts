@@ -1,5 +1,9 @@
 import app from "./app";
 import { AppDataSource } from "@libs/database/data-source";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 const PORT = 5003;
 
   AppDataSource.initialize()
