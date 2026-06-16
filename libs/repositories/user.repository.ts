@@ -142,6 +142,7 @@ export class UserRepository {
       .leftJoinAndSelect("participants.contest", "participantContest")
       .leftJoinAndSelect("user.createdContests", "createdContests");
 
+     qb.orderBy("user.created_at", "DESC");
     qb.skip((page - 1) * limit);
     qb.take(limit);
 
