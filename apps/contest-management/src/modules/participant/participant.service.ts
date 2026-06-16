@@ -455,6 +455,7 @@ export class ParticipantService {
           savedSubmission.id,
 
         user_id: user.id,
+        status : "approved",
       }),
     );
 
