@@ -46,7 +46,7 @@ export type updateUserDto = z.infer<typeof updateUserSchema>;
 
 export const createParticipantSchema = z.object({
   contestId: z.string().uuid("Invalid contest ID"),
-  countryId: z.number().int().positive("Invalid country ID"),
+  countryId: z.string().uuid("Invalid country ID"),
   formData: z.record(z.string(), z.any()),
 });
 

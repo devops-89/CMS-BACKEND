@@ -88,7 +88,7 @@ export class UserService {
     // 6. Check if user already exists
     const existingUser = await this.userRepo.findByEmail(email);
     if (existingUser) {
-      throw new ConflictError("User already exists");
+      throw new ConflictError("User already exists with this emailId!");
     }
 
     // 7. Hash password

@@ -23,7 +23,7 @@ export class CountryService {
     return this.repo.findAll();
   }
 
-  async getCountryById(id: number) {
+  async getCountryById(id: string) {
     const country = await this.repo.findById(id);
     if (!country) {
       throw new NotFoundError("Country not found");
@@ -31,7 +31,7 @@ export class CountryService {
     return country;
   }
 
-  async updateCountry(id: number, payload: updateCountryDto) {
+  async updateCountry(id: string, payload: updateCountryDto) {
     const country = await this.repo.findById(id);
     if (!country) {
       throw new NotFoundError("Country not found");
@@ -54,7 +54,7 @@ export class CountryService {
     return this.repo.updateCountry(id, payload);
   }
 
-  async deleteCountry(id: number) {
+  async deleteCountry(id: string) {
     const country = await this.repo.findById(id);
     if (!country) {
       throw new NotFoundError("Country not found");

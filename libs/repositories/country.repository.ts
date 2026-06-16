@@ -18,7 +18,7 @@ export class CountryRepository {
     return this.repo.find();
   }
 
-  async findById(id: number) {
+  async findById(id: string) {
     return this.repo.findOne({ where: { id } });
   }
 
@@ -30,12 +30,12 @@ export class CountryRepository {
     return this.repo.findOne({ where: { code } });
   }
 
-  async updateCountry(id: number, data: Partial<Country>) {
+  async updateCountry(id: string, data: Partial<Country>) {
     await this.repo.update(id, data);
     return this.findById(id);
   }
 
-  async deleteCountry(id: number): Promise<boolean> {
+  async deleteCountry(id: string): Promise<boolean> {
     const result = await this.repo.softDelete(id);
     return result.affected !== 0;
   }

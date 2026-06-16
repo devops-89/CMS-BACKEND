@@ -6,8 +6,8 @@ import { User } from './user.entity';
 @Index(['name'], { unique: true }) // Avoid duplicate country names
 
 export class Country {
-    @PrimaryGeneratedColumn()
-    id!: number;
+    @PrimaryGeneratedColumn("uuid")
+    id!: string;
 
     @Column({ type: 'varchar', length: 100 })
     name!: string; // India, United States

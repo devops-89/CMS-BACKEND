@@ -31,7 +31,7 @@ export class CountryController {
 
   getOne = async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = req.params.id;
       const country = await this.service.getCountryById(id);
       return res.status(200).json({
         message: "Country fetched successfully",
@@ -44,7 +44,7 @@ export class CountryController {
 
   update = async (req: Request<{ id: string }, {}, updateCountryDto>, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = req.params.id;
       const country = await this.service.updateCountry(id, req.body);
       return res.status(200).json({
         message: "Country updated successfully",
@@ -57,7 +57,7 @@ export class CountryController {
 
   delete = async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = req.params.id;
       await this.service.deleteCountry(id);
       return res.status(200).json({
         message: "Country deleted successfully",

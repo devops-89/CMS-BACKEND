@@ -48,7 +48,7 @@ export class User {
   fullName?: string;
 
   @Column({ nullable: true })
-countryId?: number;
+countryId?: string;
 
 @ManyToOne(() => Country, (country) => country.users, {
   nullable: true,
