@@ -16,7 +16,7 @@ export const validate =
         formattedErrors[field] = issue.message;
       });
 
-      return res.status(400).json({
+      return res.status(422).json({
         message: "Validation error",
         errors: formattedErrors
       });

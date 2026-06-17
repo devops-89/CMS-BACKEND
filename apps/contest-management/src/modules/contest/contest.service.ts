@@ -1,4 +1,4 @@
-import { ContestRepository, EntryRepository, ParticipantRepository, VotingPeriodRepository, ContestJudgeRepository, JudgeAssignedVotingPeriodRepository } from "@libs/repositories";
+import { ContestRepository, EntryRepository, ParticipantRepository, VotingPeriodRepository, ContestJudgeRepository, JudgeAssignedVotingPeriodRepository, CountryRepository } from "@libs/repositories";
 import { NotFoundError, InternalServerError, ConflictError, UnprocessableEntityError, BadRequestError } from "@libs/utils/errors.util";
 import { Contest, VotingPeriod, VotingType } from "@libs/entities";
 export class ContestService {
@@ -8,6 +8,7 @@ export class ContestService {
   private votingPeriodRepo = new VotingPeriodRepository();
   private contestJudgeRepo = new ContestJudgeRepository();
   private judgeAssignedVotingPeriodRepo = new JudgeAssignedVotingPeriodRepository();
+  private countryRepo = new CountryRepository();
 
    async createContestService(
     payload: {
@@ -16,6 +17,7 @@ export class ContestService {
       start_date: string;
       end_date: string;
       available_regions?: string[];
+      available_countries?: string[];
       status?: "Draft" | "Published" | "Offline";
       entry_level_template_id?: string;
       user_level_template_id?: string;
@@ -25,6 +27,28 @@ export class ContestService {
     // check duplicate name
     const existing = await this.repo.findByName(payload.name);
     if (existing) throw new ConflictError("Contest with this name already exists");
+
+    const start = new Date(payload.start_date);
+    const end = new Date(payload.end_date);
+    if (isNaN(start.getTime())) {
+      throw new BadRequestError("Invalid start_date format");
+    }
+    if (isNaN(end.getTime())) {
+      throw new BadRequestError("Invalid end_date format");
+    }
+    if (end <= start) {
+      throw new BadRequestError("end_date must be after start_date");
+    }
+
+    // Validate available_countries if provided
+    if (payload.available_countries) {
+      for (const countryId of payload.available_countries) {
+        const country = await this.countryRepo.findById(countryId);
+        if (!country) {
+          throw new BadRequestError(`Country with ID ${countryId} is not valid`);
+        }
+      }
+    }
 
     const contest = this.repo.create({
       ...payload,
@@ -52,7 +76,7 @@ async getContestOverview(id: string) {
 
   const stats = await this.repo.getStats(id);
 
-  // ✅ participants
+  //  participants
   const participants = await this.participantRepo.findByContest(id);
 
   const cleanedParticipants = participants.map((p) => {
@@ -63,7 +87,7 @@ async getContestOverview(id: string) {
     return p;
   });
 
-  // ✅ entries
+  //  entries
   const entries = await this.entryRepo.findByContest(id);
 
   const cleanedEntries = entries.map((e) => {
@@ -83,14 +107,14 @@ async getContestOverview(id: string) {
     participants: cleanedParticipants,
     total_participants: cleanedParticipants.length,
 
-    // 🔥 NEW
+    // NEW
     entries: cleanedEntries,
     total_entries_list: cleanedEntries.length,
   };
 }
 
 
- async updateContest(
+  async updateContest(
     id: string,
     payload: Partial<{
       name: string;
@@ -98,6 +122,7 @@ async getContestOverview(id: string) {
       start_date: string;
       end_date: string;
       available_regions: string[];
+      available_countries: string[];
       form_template_id: string;
       entry_level_template_id: string;
       user_level_template_id: string;
@@ -113,6 +138,19 @@ async getContestOverview(id: string) {
       if (nameTaken) throw new ConflictError("Contest with this name already exists");
     }
 
+    const start = payload.start_date ? new Date(payload.start_date) : existing.start_date;
+    const end = payload.end_date ? new Date(payload.end_date) : existing.end_date;
+
+    if (payload.start_date && isNaN(start.getTime())) {
+      throw new BadRequestError("Invalid start_date format");
+    }
+    if (payload.end_date && isNaN(end.getTime())) {
+      throw new BadRequestError("Invalid end_date format");
+    }
+    if (end <= start) {
+      throw new BadRequestError("end_date must be after start_date");
+    }
+
     const updateData: Partial<Contest> = {};
 
     if (payload.name)                    updateData.name = payload.name;
@@ -124,6 +162,16 @@ async getContestOverview(id: string) {
     if (payload.entry_level_template_id) updateData.entry_level_template_id = payload.entry_level_template_id;
     if (payload.user_level_template_id)  updateData.user_level_template_id = payload.user_level_template_id;
     if (payload.status)                  updateData.status = payload.status;
+
+    if (payload.available_countries) {
+      for (const countryId of payload.available_countries) {
+        const country = await this.countryRepo.findById(countryId);
+        if (!country) {
+          throw new BadRequestError(`Country with ID ${countryId} is not valid`);
+        }
+      }
+      updateData.available_countries = payload.available_countries;
+    }
 
     try {
       await this.repo.update(id, updateData);
