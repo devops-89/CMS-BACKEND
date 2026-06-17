@@ -10,8 +10,8 @@ type ParticipantParams = { contestId: string; pid: string };
 export class ParticipantController {
   add = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const data = await service.addParticipant(req.params.contestId, req.body);
-      return res.status(201).json({ message: "Participant added", data });
+      const data = await service.addParticipantByAdminService(req.params.contestId, req.body);
+      return res.status(201).json({ message: "Participant added successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
     }

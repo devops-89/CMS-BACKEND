@@ -325,6 +325,7 @@ async createParticipantService(payload: createParticipantDto) {
       contest_id: contest.id,
       submission_id: submission.id,
       user_id: user.id,
+     status:"approved"
     }),
   );
 

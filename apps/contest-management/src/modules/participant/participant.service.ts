@@ -65,411 +65,48 @@ export class ParticipantService {
   }
 
 
- async addParticipant(
+ async addParticipantByAdminService(
   contest_id: string,
   formData: Record<string, any>,
 ) {
+  const contest = await this.getContest(contest_id);
+  const template = await this.getTemplate(contest.user_level_template_id!);
 
-  // =========================
-  // Fetch Contest
-  // =========================
+  // Extract the actual field answers. If nested under a 'data' key, use it.
+  const answers = formData.data && typeof formData.data === "object" && !Array.isArray(formData.data)
+    ? formData.data
+    : formData;
 
-  const contest = await this.contestRepo.findById(
-    contest_id,
+  const submission = await this.submissionRepo.save(
+    this.submissionRepo.create(template, answers),
   );
 
-  if (!contest) {
-    throw new NotFoundError(
-      "Contest not found",
-    );
-  }
+  const fields = this.flattenFields(template.schema?.fields || []);
 
-  if (!contest.user_level_template_id) {
-    throw new NotFoundError(
-      "User level template ID missing",
-    );
-  }
+  const participant = this.extractParticipantData(fields, answers);
 
-  // =========================
-  // Fetch Template
-  // =========================
-
-  const template = await this.templateRepo.findById(
-    contest.user_level_template_id,
+  const user = await this.createOrUpdateParticipantUser(
+    participant,
+    answers,
+    template.id,
   );
 
-  if (!template) {
-    throw new NotFoundError(
-      "Form template not found",
-    );
-  }
-
-  // =========================
-  // Save Submission
-  // =========================
-
-  const savedSubmission =
-    await this.submissionRepo.save(
-      this.submissionRepo.create(
-        template,
-        formData,
-      ),
-    );
-
-  // =========================
-  // Flatten Fields
-  // =========================
-
-  const flattenFields = (
-    fields: any[],
-  ): any[] => {
-
-    let result: any[] = [];
-
-    if (!fields) return result;
-
-    for (const field of fields) {
-
-      result.push(field);
-
-      if (field.config?.children) {
-        result.push(
-          ...flattenFields(
-            field.config.children,
-          ),
-        );
-      }
-    }
-
-    return result;
-  };
-
-  const allFields = flattenFields(
-    template.schema?.fields || [],
+  await this.createOrUpdateParticipantProfile(
+    user,
+    submission.id,
+    participant,
   );
 
-  // =========================
-  // Dynamic Field Resolver
-  // =========================
-
-  const getFieldValueByLabel = (
-    labelMatchers: string[],
-  ) => {
-
-    const field = allFields.find(
-      (f) => {
-
-        if (!f.label) {
-          return false;
-        }
-
-        const normalizedLabel =
-          f.label.toLowerCase().trim();
-
-        return labelMatchers.some(
-          (matcher) =>
-            normalizedLabel.includes(
-              matcher.toLowerCase(),
-            ),
-        );
-      },
-    );
-
-    if (!field) {
-      return undefined;
-    }
-
-    return formData[field.id];
-  };
-
-  // =========================
-  // Extract Dynamic Values
-  // =========================
-
-  const firstName =
-    getFieldValueByLabel([
-      "first name",
-    ]);
-
-  const lastName =
-    getFieldValueByLabel([
-      "last name",
-    ]);
-
-  const fullName = 
-  getFieldValueByLabel(["Full Name"]) || `${firstName} ${lastName}`;
-
-  const email =
-    getFieldValueByLabel([
-      "email",
-    ]);
-
-  const phone =
-    getFieldValueByLabel([
-      "phone",
-      "phone number",
-      "mobile",
-    ]);
-
-  const dateOfBirth =
-    getFieldValueByLabel([
-      "birth date",
-      "date of birth",
-      "dob",
-    ]);
-
-  const schoolName =
-    getFieldValueByLabel([
-      "school name",
-      "school",
-    ]);
-
-  const grade =
-    getFieldValueByLabel([
-      "grade",
-      "year",
-    ]);
-
-  const country =
-    getFieldValueByLabel([
-      "country",
-      "country of residence",
-    ]);
-
-  // =========================
-  // Email Fallback
-  // =========================
-
-  let resolvedEmail = email;
-
-  if (!resolvedEmail) {
-
-    resolvedEmail =
-      `participant_${Date.now()}_${Math.random()
-        .toString(36)
-        .substring(2, 6)}@launchpad-temp.com`;
-  }
-
-  // =========================
-  // Find Existing User
-  // =========================
-
-  let user =
-    await this.userRepo
-      .findByEmailWithParticipantProfile(
-        resolvedEmail,
-      );
-
-  // =========================
-  // Create User
-  // =========================
-
-  if (!user) {
-
-    const tempPassword =
-      crypto.randomBytes(16)
-        .toString("hex");
-
-    const hashedPassword =
-      await bcrypt.hash(
-        tempPassword,
-        12,
-      );
-
-    user = await this.userRepo.save(
-
-      this.userRepo.create({
-
-        firstName:
-          firstName || "",
-
-        lastName:
-          lastName || "",
-
-        fullName: fullName,
-
-        email: resolvedEmail,
-
-        phone:
-          phone || "",
-
-        password: "",
-
-        role:
-          UserRole.PARTICIPANT,
-
-        form_template_id:
-          template.id,
-
-        participant_profile_data:
-          formData,
-      }),
-    );
-
-  } else {
-
-    // =========================
-    // Update Existing User
-    // =========================
-
-    user.participant_profile_data = {
-      ...(user.participant_profile_data || {}),
-      ...formData,
-    };
-
-    if (firstName) {
-      user.firstName = firstName;
-    }
-
-    if (lastName) {
-      user.lastName = lastName;
-    }
-
-    if (phone) {
-      user.phone = phone;
-    }
-
-    if (template?.id) {
-      user.form_template_id =
-        template.id;
-    }
-
-    await this.userRepo.save(user);
-  }
-
-  // =========================
-  // Create / Update Profile
-  // =========================
-
-  if (!user.participantProfile) {
-
-    const profileData: any = {
-
-      user,
-
-      submission_id:
-        savedSubmission.id,
-
-      schoolName,
-
-      country,
-
-      grade,
-    };
-
-    if (dateOfBirth) {
-      profileData.dateOfBirth =
-        new Date(dateOfBirth);
-    }
-
-    const profile =
-      await this.participantProfileRepo.save(
-
-        this.participantProfileRepo.create(
-          profileData,
-        ),
-      );
-
-    user.participantProfile =
-      profile;
-
-  } else {
-
-    const existingProfile =
-      user.participantProfile;
-
-    let profileUpdated = false;
-
-    if (dateOfBirth) {
-
-      existingProfile.dateOfBirth =
-        new Date(dateOfBirth);
-
-      profileUpdated = true;
-    }
-
-    if (country) {
-
-      existingProfile.country =
-        country;
-
-      profileUpdated = true;
-    }
-
-    if (schoolName) {
-
-      existingProfile.schoolName =
-        schoolName;
-
-      profileUpdated = true;
-    }
-
-    if (grade) {
-
-      existingProfile.grade =
-        grade;
-
-      profileUpdated = true;
-    }
-
-    if (profileUpdated) {
-
-      await this.participantProfileRepo.save(
-        existingProfile,
-      );
-    }
-  }
-
-  // =========================
-  // Prevent Duplicate Join
-  // =========================
-
-  const existingParticipant =
-    await this.repo.findOne({
-      where: {
-        contest_id,
-        user_id: user.id,
-      },
-    });
-
-  if (existingParticipant) {
-
-    throw new BadRequestError(
-      "Participant already joined this contest",
-    );
-  }
-
-  // =========================
-  // Create Participant
-  // =========================
-
-  try {
-
-    return await this.repo.save(
-
-      this.repo.create({
-
-        contest_id,
-
-        submission_id:
-          savedSubmission.id,
-
-        user_id: user.id,
-        status : "approved",
-      }),
-    );
-
-  } catch (error) {
-
-    console.log(
-      "Participant Create Error:",
-      error,
-    );
-
-    throw new InternalServerError(
-      "Failed to add participant",
-    );
-  }
+  await this.ensureParticipantNotExists(contest_id, user.id);
+
+  return this.repo.save(
+    this.repo.create({
+      contest_id,
+      submission_id: submission.id,
+      user_id: user.id,
+      status: "approved",
+    }),
+  );
 }
 
   async getParticipantById(id: string, contest_id: string) {
@@ -509,4 +146,267 @@ export class ParticipantService {
 
     return { message: "Participant removed successfully" };
   }
+
+  private flattenFields(fields: any[]): any[] {
+  return fields.flatMap((field) => [
+    field,
+    ...(field.config?.children
+      ? this.flattenFields(field.config.children)
+      : []),
+  ]);
+}
+
+private getFieldValue(
+  fields: any[],
+  formData: any,
+  labels: string[],
+) {
+  const field = fields.find((f) =>
+    labels.some((label) =>
+      f.label?.toLowerCase().trim().includes(label.toLowerCase()),
+    ),
+  );
+
+  return field ? formData[field.id] : undefined;
+}
+private extractParticipantData(
+  fields: any[],
+  formData: any,
+) {
+  return {
+  firstName: this.getFieldValue(fields, formData, [
+    "first name",
+    "firstname",
+    "first_name",
+    "Firstname"
+  ]),
+
+  lastName: this.getFieldValue(fields, formData, [
+    "last name",
+    "lastname",
+    "last_name",
+    "Lastname"
+  ]),
+
+  fullName:
+    this.getFieldValue(fields, formData, [
+      "full name",
+      "fullname",
+      "full_name",
+      "Name"
+    ]),
+
+  email: this.getFieldValue(fields, formData, [
+    "email",
+    "email address",
+    "Email"
+  ]) || "",
+
+  phone: this.getFieldValue(fields, formData, [
+    "phone",
+    "phone number",
+    "mobile",
+    "mobile number",
+    "contact number",
+    "Mobile Number",
+  ]),
+
+  password: this.getFieldValue(fields, formData, [
+    "password",
+    "Password"
+  ]),
+
+  dateOfBirth: this.getFieldValue(fields, formData, [
+    "dob",
+    "date of birth",
+    "birth date",
+    "birthday",
+  ]),
+
+  schoolName: this.getFieldValue(fields, formData, [
+    "school",
+    "school name",
+    "School"
+  ]),
+
+  grade: this.getFieldValue(fields, formData, [
+    "grade",
+    "class",
+    "year",
+    "standard",
+  ]),
+
+  country: this.getFieldValue(fields, formData, [
+    "country",
+    "country of residence",
+  ]),
+
+  fatherName: this.getFieldValue(fields, formData, [
+    "father",
+    "father's name",
+    "father name",
+  ]),
+
+  innovationTitle: this.getFieldValue(fields, formData, [
+    "innovation title",
+    "title",
+  ]),
+
+  innovationDocument: this.getFieldValue(fields, formData, [
+    "innovation document",
+    "document",
+    "file",
+  ]),
+};
+}
+private async getContest(id: string) {
+  const contest = await this.contestRepo.findById(id);
+
+  if (!contest) {
+    throw new NotFoundError("Contest not found");
+  }
+
+  if (!contest.user_level_template_id) {
+    throw new NotFoundError(
+      "User level template ID missing",
+    );
+  }
+
+  return contest;
+}
+
+private async getTemplate(id: string) {
+  const template = await this.templateRepo.findById(id);
+
+  if (!template) {
+    throw new NotFoundError(
+      "Form template not found",
+    );
+  }
+
+  return template;
+}
+
+private async createOrUpdateParticipantUser(
+  participant: any,
+  answers: Record<string, any>,
+  templateId: string,
+) {
+  let resolvedEmail = participant.email;
+  if (!resolvedEmail) {
+    resolvedEmail = `participant_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 6)}@launchpad-temp.com`;
+  }
+
+  let user = await this.userRepo.findByEmailWithParticipantProfile(resolvedEmail);
+
+  const fullName = participant.fullName || `${participant.firstName || ""} ${participant.lastName || ""}`.trim();
+
+  if (!user) {
+    const rawPassword = participant.password || crypto.randomBytes(16).toString("hex");
+    const hashedPassword = await bcrypt.hash(rawPassword, 12);
+
+    user = await this.userRepo.save(
+      this.userRepo.create({
+        firstName: participant.firstName || "",
+        lastName: participant.lastName || "",
+        fullName: fullName,
+        email: resolvedEmail,
+        phone: participant.phone || "",
+        password: hashedPassword || "",
+        role: UserRole.PARTICIPANT,
+        form_template_id: templateId,
+        participant_profile_data: answers,
+      }),
+    );
+  } else {
+    user.participant_profile_data = {
+      ...(user.participant_profile_data || {}),
+      ...answers,
+    };
+    if (participant.firstName) {
+      user.firstName = participant.firstName;
+    }
+    if (participant.lastName) {
+      user.lastName = participant.lastName;
+    }
+    if (participant.phone) {
+      user.phone = participant.phone;
+    }
+    if(participant.fullName){
+      user.fullName = participant.fullName;
+    }
+
+    user.form_template_id = templateId;
+
+    await this.userRepo.save(user);
+  }
+
+  return user;
+}
+
+private async createOrUpdateParticipantProfile(
+  user: any,
+  submissionId: string,
+  participant: any,
+) {
+  if (!user.participantProfile) {
+    const profileData: any = {
+      user,
+      submission_id: submissionId,
+      schoolName: participant.schoolName,
+      country: participant.country,
+      grade: participant.grade,
+    };
+
+    if (participant.dateOfBirth) {
+      profileData.dateOfBirth = new Date(participant.dateOfBirth);
+    }
+
+    const profile = await this.participantProfileRepo.save(
+      this.participantProfileRepo.create(profileData),
+    );
+
+    user.participantProfile = profile;
+  } else {
+    const existingProfile = user.participantProfile;
+    let profileUpdated = false;
+
+    if (participant.dateOfBirth) {
+      existingProfile.dateOfBirth = new Date(participant.dateOfBirth);
+      profileUpdated = true;
+    }
+    if (participant.country) {
+      existingProfile.country = participant.country;
+      profileUpdated = true;
+    }
+    if (participant.schoolName) {
+      existingProfile.schoolName = participant.schoolName;
+      profileUpdated = true;
+    }
+    if (participant.grade) {
+      existingProfile.grade = participant.grade;
+      profileUpdated = true;
+    }
+
+    if (profileUpdated) {
+      await this.participantProfileRepo.save(existingProfile);
+    }
+  }
+}
+
+private async ensureParticipantNotExists(contestId: string, userId: string) {
+  const existingParticipant = await this.repo.findOne({
+    where: {
+      contest_id: contestId,
+      user_id: userId,
+    },
+  });
+
+  if (existingParticipant) {
+    throw new BadRequestError("Participant already joined this contest");
+  }
+}
+
 }

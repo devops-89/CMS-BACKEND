@@ -38,6 +38,14 @@ export class Contest {
   @Column({ type: "simple-array", nullable: true })
   available_regions!: string[];
 
+  @Column({
+  type: "text",
+  array: true,
+  nullable: true,
+  default: () => "ARRAY[]::text[]",
+})
+available_countries?: string[];
+
   @ManyToOne(() => FormTemplate, { nullable: true, onDelete: "RESTRICT", eager: true })
   @JoinColumn({ name: "form_template_id" })
   formTemplate?: FormTemplate;
