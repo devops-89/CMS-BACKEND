@@ -16,7 +16,7 @@ export class ContestRepository {
   return this.repo.findOne({ where: { name } });
 }
 
-  async findAll(status?: string, search?: string, page: number = 1, limit: number = 10) {
+  async findAll(status?: string, search?: string, page: number = 1, limit: number = 10, userId?: string) {
     const qb = this.repo.createQueryBuilder("contest")
       .leftJoinAndSelect("contest.formTemplate", "formTemplate")
       .loadRelationCountAndMap("contest.participantCount", "contest.participants")
@@ -28,6 +28,10 @@ export class ContestRepository {
 
     if (search) {
       qb.andWhere("contest.name ILIKE :search", { search: `%${search}%` });
+    }
+
+    if (userId) {
+      qb.innerJoin("contest.participants", "filterParticipant", "filterParticipant.user_id = :userId", { userId });
     }
 
     qb.orderBy("contest.created_at", "DESC");

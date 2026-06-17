@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { ContestService } from "./contest.service";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
+import { UserRole } from "@libs/entities";
+import jwt from "jsonwebtoken";
 
 const service = new ContestService();
 
@@ -23,7 +25,24 @@ export class ContestController {
       const parsedPage = page ? parseInt(page, 10) : 1;
       const parsedLimit = limit ? parseInt(limit, 10) : 10;
 
-      const data = await service.getContests(status, search, parsedPage, parsedLimit);
+      let userId: string | undefined;
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        const parts = authHeader.split(" ");
+        const token = parts.length === 2 ? parts[1] : parts[0];
+        if (token) {
+          try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; role: string };
+            if (decoded.role === UserRole.PARTICIPANT) {
+              userId = decoded.userId;
+            }
+          } catch (err) {
+            return res.status(401).json({ message: "Invalid Token" });
+          }
+        }
+      }
+
+      const data = await service.getContests(status, search, parsedPage, parsedLimit, userId);
       return res.status(200).json({ message: "Contests fetched successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 500).json({ message: e.message });
@@ -32,7 +51,24 @@ export class ContestController {
 
   getOverview = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const data = await service.getContestOverview(req.params.id);
+      let userId: string | undefined;
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        const parts = authHeader.split(" ");
+        const token = parts.length === 2 ? parts[1] : parts[0];
+        if (token) {
+          try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; role: string };
+            if (decoded.role === UserRole.PARTICIPANT) {
+              userId = decoded.userId;
+            }
+          } catch (err) {
+            return res.status(401).json({ message: "Invalid Token" });
+          }
+        }
+      }
+
+      const data = await service.getContestOverview(req.params.id, userId);
       return res.status(200).json({ message: "Contest overview fetched", data });
     } catch (e: any) {
       return res.status(e.statusCode || 404).json({ message: e.message });

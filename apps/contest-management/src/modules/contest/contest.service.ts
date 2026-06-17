@@ -60,8 +60,8 @@ export class ContestService {
     return await this.repo.save(contest);
   }
 
-  async getContests(status?: string, search?: string, page: number = 1, limit: number = 10) {
-    return await this.repo.findAll(status, search, page, limit);
+  async getContests(status?: string, search?: string, page: number = 1, limit: number = 10, userId?: string) {
+    return await this.repo.findAll(status, search, page, limit, userId);
   }
 
   async getContestById(id: string) {
@@ -70,9 +70,18 @@ export class ContestService {
     return contest;
   }
 
-async getContestOverview(id: string) {
+async getContestOverview(id: string, userId?: string) {
   const contest = await this.repo.findById(id);
   if (!contest) throw new NotFoundError("Contest not found");
+
+  if (userId) {
+    const isParticipant = await this.participantRepo.findOne({
+      where: { contest_id: id, user_id: userId }
+    });
+    if (!isParticipant) {
+      throw new NotFoundError("Contest not found");
+    }
+  }
 
   const stats = await this.repo.getStats(id);
 
