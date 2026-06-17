@@ -53,7 +53,7 @@ export class AuthController {
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      // ✅ FIX: don't send null, only send values if present
+      //  FIX: don't send null, only send values if present
       const user = await this.userRepo.createUser({
         email,
         password: hashedPassword,
@@ -64,7 +64,7 @@ export class AuthController {
         ...(phone && { phone }),
       });
 
-      // ✅ Role-based profile creation
+      //  Role-based profile creation
       if (role === UserRole.ADMIN) {
         await this.adminRepo.createProfile({ user });
       }
@@ -83,6 +83,7 @@ export class AuthController {
           userId: user.id,
           email: user.email,
           role: user.role,
+          status: user.status,
         },
       });
     } catch (error: any) {
@@ -112,7 +113,7 @@ export class AuthController {
       expertise,
     } = req.body;
 
-    // ✅ Check existing user
+    //  Check existing user
     const existingUser = await queryRunner.manager.findOne(User, {
       where: { email },
     });
@@ -125,7 +126,7 @@ export class AuthController {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // ✅ Create User (Judge role + Pending status)
+    //  Create User (Judge role + Pending status)
     const user = queryRunner.manager.create(User, {
       firstName,
       lastName,
@@ -133,12 +134,12 @@ export class AuthController {
       phone,
       password: hashedPassword,
       role: UserRole.JUDGE,
-      status: UserStatus.PENDING, // 👈 important
+      status: UserStatus.ACTIVE,
     });
 
     await queryRunner.manager.save(user);
 
-    // ✅ Create Judge Profile
+    //  Create Judge Profile
     const judgeProfile = queryRunner.manager.create(JudgeProfile, {
       user,
       expertise: expertise || null,
@@ -191,7 +192,7 @@ export class AuthController {
         grade,
       } = req.body;
 
-      // ✅ Check existing user
+      //  Check existing user
       const existingUser = await queryRunner.manager.findOne(User, {
         where: { email },
       });
@@ -477,7 +478,7 @@ export class AuthController {
       const hashedPassword = await bcrypt.hash(password, 12);
       await this.userRepo.updatePassword(user.id, hashedPassword);
 
-      // ✅ Mark OTP used
+      //  Mark OTP used
       await this.otpRepo.markUsed(record.id);
 
       return res.json({

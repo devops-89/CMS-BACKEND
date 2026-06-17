@@ -48,7 +48,7 @@ export class User {
   fullName?: string;
 
   @Column({ nullable: true })
-countryId?: number;
+countryId?: string;
 
 @ManyToOne(() => Country, (country) => country.users, {
   nullable: true,
@@ -119,6 +119,13 @@ formTemplate?: FormTemplate;
 
 @Column({ nullable: true })
 form_template_id?: string;
+
+@Column({
+  type: "boolean",
+  nullable: true,
+  default: null,
+})
+isSelfRegistered?: boolean | null;
 
 @OneToMany(() => Contest, (contest) => contest.createdBy)
 createdContests?: Contest[];

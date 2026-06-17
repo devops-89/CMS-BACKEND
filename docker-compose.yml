@@ -14,7 +14,6 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    
 
   user-service:
     build: .
@@ -41,7 +40,7 @@ services:
     depends_on:
       - db
     volumes:
-      - /app/node_modules 
+      - /app/node_modules
 
   contest-management:
     build: .
@@ -54,9 +53,21 @@ services:
     depends_on:
       - db
     volumes:
-      - /app/node_modules 
+      - /app/node_modules
 
+  # server db port 5432
+  # db:
+  #   image: postgres:16
+  #   container_name: launchpad-db
+  #   restart: always
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
 
+  # local db port 5433
   db:
     image: postgres:16
     container_name: launchpad-db
@@ -64,7 +75,7 @@ services:
     env_file:
       - .env
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 

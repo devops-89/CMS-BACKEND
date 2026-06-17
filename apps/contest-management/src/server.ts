@@ -1,5 +1,9 @@
 import app from "./app";
 import { AppDataSource } from "@libs/database/data-source";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 const PORT = 5004;
 
   AppDataSource.initialize()
@@ -8,7 +12,7 @@ const PORT = 5004;
 
 
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🚀 contest-management service running on ${PORT}`);
+      console.log(`🚀 Contest-Management service running on ${PORT}`);
     });
 
   })

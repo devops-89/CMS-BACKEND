@@ -15,7 +15,7 @@ export const updateCountrySchema = createCountrySchema.partial();
 export type updateCountryDto = z.infer<typeof updateCountrySchema>;
 
 export const getCountryByIdSchema = z.object({
-  id: z.coerce.number(),
+  id: z.string().uuid("Invalid country ID"),
 });
 
 export type getCountryByIdDto = z.infer<typeof getCountryByIdSchema>;

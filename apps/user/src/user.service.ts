@@ -5,6 +5,9 @@ import {
   OtpsRepository,
   FormTemplateRepository,
   CountryRepository,
+  ContestRepository,
+  FormSubmissionRepository,
+  ParticipantRepository,
 } from "@libs/repositories";
 import { UserRole, UserStatus } from "@libs/entities";
 import { NotificationService } from "@libs/notifications/notification.service";
@@ -17,104 +20,353 @@ export class UserService {
   private otpRepo = new OtpsRepository();
   private formTemplateRepo = new FormTemplateRepository();
   private countryRepo = new CountryRepository();
+  private contestRepo = new ContestRepository();
   private notificationService = new NotificationService();
+  private submissionRepo = new FormSubmissionRepository();
+  private participantEntityRepo = new ParticipantRepository();
 
-  async createParticipantService(payload: createParticipantDto) {
-    const { templateId, countryId, formData } = payload;
+  // async createParticipantService(payload: createParticipantDto) {
+  //   const { contestId, countryId, formData } = payload;
 
-    // 1. Validate that the country exists
-    const country = await this.countryRepo.findById(countryId);
-    if (!country) {
-      throw new BadRequestError("Invalid country ID");
-    }
+  //   // 1. Validate that the country exists
+  //   const country = await this.countryRepo.findById(countryId);
+  //   if (!country) {
+  //     throw new BadRequestError("Invalid country ID");
+  //   }
 
-    // 2. Fetch the FormTemplate
-    const template = await this.formTemplateRepo.findById(templateId);
-    if (!template) {
-      throw new NotFoundError("Form template not found");
-    }
+  //   // 2. Fetch the Contest
+  //   const contest = await this.contestRepo.findById(contestId);
+  //   if (!contest) {
+  //     throw new NotFoundError("Contest not found");
+  //   }
 
-    // 3. Extract credentials dynamically based on field labels
-    const fields = template.schema.fields;
-    let firstName = "";
-    let lastName = "";
-    let email = "";
-    let password = "";
+  //   // 3. Fetch the associated user level template from the contest
+  //   const template = contest.userLevelTemplate;
+  //   if (!template) {
+  //     throw new NotFoundError("User registration form template not configured for this contest");
+  //   }
 
-    for (const field of fields) {
-      const value = formData[field.id];
-      if (value === undefined || value === null) continue;
+  //   // 4. Extract credentials dynamically based on field labels
+  //   const fields = template.schema.fields;
+  //   let firstName = "";
+  //   let lastName = "";
+  //   let email = "";
+  //   let password = "";
+  //   let phone = "";
+  //   let dateOfBirthStr = "";
 
-      const label = field.label.trim().toLowerCase();
+  //   for (const field of fields) {
+  //     const value = formData[field.id];
+  //     if (value === undefined || value === null) continue;
 
-      if (label === "firstname" || label === "first name" || label.includes("firstname")) {
-        firstName = String(value);
-      } else if (label === "lastname" || label === "last name" || label.includes("lastname")) {
-        lastName = String(value);
-      } else if (label === "mail" || label === "email" || label.includes("mail") || label.includes("email")) {
-        email = String(value);
-      } else if (label === "password" || label.includes("password")) {
-        password = String(value);
-      }
-    }
+  //     const label = field.label.trim().toLowerCase();
 
-    // 4. Validate that all required signup fields were mapped successfully
-    if (!firstName) {
-      throw new BadRequestError("Firstname is required based on the registration form");
-    }
-    if (!lastName) {
-      throw new BadRequestError("Lastname is required based on the registration form");
-    }
-    if (!email) {
-      throw new BadRequestError("Mail/Email is required based on the registration form");
-    }
-    if (!password) {
-      throw new BadRequestError("Password is required based on the registration form");
-    }
+  //     if (label === "firstname" || label === "first name" || label.includes("firstname")) {
+  //       firstName = String(value);
+  //     } else if (label === "lastname" || label === "last name" || label.includes("lastname")) {
+  //       lastName = String(value);
+  //     } else if (label === "mail" || label === "email" || label.includes("mail") || label.includes("email")) {
+  //       email = String(value);
+  //     } else if (label === "password" || label.includes("password")) {
+  //       password = String(value);
+  //     } else if (label === "phone" || label === "phone number" || label.includes("phone") || label.includes("mobile")) {
+  //       phone = String(value);
+  //     } else if (label === "date of birth" || label === "dob" || label === "birthdate" || label.includes("birth")) {
+  //       dateOfBirthStr = String(value);
+  //     }
+  //   }
 
-    // 5. Check if user already exists
-    const existingUser = await this.userRepo.findByEmail(email);
-    if (existingUser) {
-      throw new ConflictError("User already exists");
-    }
+  //   // Ensure strings are set to empty strings rather than undefined if missing
+  //   firstName = firstName || "";
+  //   lastName = lastName || "";
+  //   phone = phone || "";
 
-    // 6. Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+  //   // 5. Validate that critical credentials (email and password) are present
+  //   if (!email) {
+  //     throw new BadRequestError("Mail/Email field is required");
+  //   }
+  //   if (!password) {
+  //     throw new BadRequestError("Password field is required");
+  //   }
 
-    // 7. Merge first name and last name into full name
-    const fullName = `${firstName} ${lastName}`.trim();
+  //   // 6. Check if user already exists
+  //   const existingUser = await this.userRepo.findByEmail(email);
+  //   if (existingUser) {
+  //     throw new ConflictError("User already exists with this emailId!");
+  //   }
 
-    // 8. Create user in PENDING status
-    const user = await this.userRepo.createUser({
-      email,
-      password: hashedPassword,
-      role: UserRole.PARTICIPANT,
-      status: UserStatus.PENDING,
-      firstName,
-      lastName,
-      fullName,
-      countryId,
-    });
+  //   // 7. Hash password
+  //   const hashedPassword = await bcrypt.hash(password, 12);
 
-    // 9. Create Participant Profile
-    await this.participantRepo.createProfile({ user });
+  //   // 8. Merge first name and last name into full name
+  //   const fullName = `${firstName} ${lastName}`.trim();
 
-    // 10. Generate and save OTP linked to the user's UUID
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedOtp = await bcrypt.hash(otp, 10);
+  //   // 9. Create user in PENDING status
+  //   const user = await this.userRepo.createUser({
+  //     email,
+  //     password: hashedPassword,
+  //     role: UserRole.PARTICIPANT,
+  //     status: UserStatus.PENDING,
+  //     form_template_id:contest.userLevelTemplate?.id,
+  //     isSelfRegistered:true,
+  //     firstName,
+  //     lastName,
+  //     fullName,
+  //     phone,
+  //     countryId,
+  //   });
 
-    // Expiry (5 minutes)
-    const expires = new Date();
-    expires.setMinutes(expires.getMinutes() + 5);
+  //   // 10. Create Participant Profile
+  //   const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
+  //   await this.participantRepo.createProfile({
+  //     user,
+  //     dateOfBirth: dob as Date,
+  //   });
 
-    // Save OTP
-    await this.otpRepo.createOtp(user.id, hashedOtp, expires);
+  //   // 11. Generate and save OTP linked to the user's UUID
+  //   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  //   const hashedOtp = await bcrypt.hash(otp, 10);
 
-    // Send OTP via email
-    await this.notificationService.sendOtp(email, otp, firstName);
+  //   // Expiry (5 minutes)
+  //   const expires = new Date();
+  //   expires.setMinutes(expires.getMinutes() + 5);
 
-    return user;
+  //   // Save OTP
+  //   await this.otpRepo.createOtp(user.id, hashedOtp, expires);
+
+  //   // Send OTP via email
+  //   await this.notificationService.sendOtp(email, otp, firstName || "Participant");
+
+  //   return user;
+  // }
+
+
+async createParticipantService(payload: createParticipantDto) {
+  const { contestId, countryId, formData } = payload;
+
+  // =====================================================
+  // Validate Country
+  // =====================================================
+
+  const country = await this.countryRepo.findById(countryId);
+
+  if (!country) {
+    throw new BadRequestError("Invalid country ID");
   }
+
+  // =====================================================
+  // Fetch Contest
+  // =====================================================
+
+  const contest = await this.contestRepo.findById(contestId);
+
+  if (!contest) {
+    throw new NotFoundError("Contest not found");
+  }
+
+  // =====================================================
+  // Fetch User Level Template
+  // =====================================================
+
+  const template = contest.userLevelTemplate;
+
+  if (!template) {
+    throw new NotFoundError(
+      "User registration form template not configured for this contest",
+    );
+  }
+
+  // =====================================================
+  // Extract Dynamic Fields
+  // =====================================================
+
+  let firstName = "";
+  let lastName = "";
+  let email = "";
+  let password = "";
+  let phone = "";
+  let dateOfBirthStr = "";
+
+  for (const field of template.schema.fields) {
+    const value = formData[field.id];
+
+    if (value === undefined || value === null) {
+      continue;
+    }
+
+    const label = field.label.trim().toLowerCase();
+
+    if (
+      label === "firstname" ||
+      label === "first name" ||
+      label.includes("firstname")
+    ) {
+      firstName = String(value);
+    } else if (
+      label === "lastname" ||
+      label === "last name" ||
+      label.includes("lastname")
+    ) {
+      lastName = String(value);
+    } else if (
+      label === "mail" ||
+      label === "email" ||
+      label.includes("mail") ||
+      label.includes("email")
+    ) {
+      email = String(value);
+    } else if (
+      label === "password" ||
+      label.includes("password")
+    ) {
+      password = String(value);
+    } else if (
+      label === "phone" ||
+      label === "phone number" ||
+      label.includes("phone") ||
+      label.includes("mobile")
+    ) {
+      phone = String(value);
+    } else if (
+      label === "date of birth" ||
+      label === "dob" ||
+      label === "birthdate" ||
+      label.includes("birth")
+    ) {
+      dateOfBirthStr = String(value);
+    }
+  }
+
+  firstName = firstName || "";
+  lastName = lastName || "";
+  phone = phone || "";
+
+  // =====================================================
+  // Validate Required Fields
+  // =====================================================
+
+  if (!email) {
+    throw new BadRequestError("Mail/Email field is required");
+  }
+
+  if (!password) {
+    throw new BadRequestError("Password field is required");
+  }
+
+  // =====================================================
+  // Check Existing User
+  // =====================================================
+
+  const existingUser = await this.userRepo.findByEmail(email);
+
+  if (existingUser) {
+    throw new ConflictError(
+      "User already exists with this emailId!",
+    );
+  }
+
+  // =====================================================
+  // Hash Password
+  // =====================================================
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  // =====================================================
+  // Create User
+  // =====================================================
+
+  const user = await this.userRepo.createUser({
+    email,
+    password: hashedPassword,
+    role: UserRole.PARTICIPANT,
+    status: UserStatus.PENDING,
+    form_template_id: template.id,
+    isSelfRegistered: true,
+    firstName,
+    lastName,
+    fullName,
+    phone,
+    countryId,
+  });
+
+  // =====================================================
+  // Create Participant Profile
+  // =====================================================
+
+  const dob = dateOfBirthStr
+    ? new Date(dateOfBirthStr)
+    : null;
+
+  await this.participantRepo.createProfile({
+    user,
+    dateOfBirth: dob as Date,
+  });
+
+  // =====================================================
+  // Create Form Submission
+  // =====================================================
+
+  const submission =
+    await this.submissionRepo.save(
+      this.submissionRepo.create(
+        template,
+        formData,
+      ),
+    );
+
+  // =====================================================
+  // Create Participant Record
+  // =====================================================
+
+  await this.participantEntityRepo.save(
+    this.participantEntityRepo.create({
+      contest_id: contest.id,
+      submission_id: submission.id,
+      user_id: user.id,
+    }),
+  );
+
+  // =====================================================
+  // Generate OTP
+  // =====================================================
+
+  const otp = Math.floor(
+    100000 + Math.random() * 900000,
+  ).toString();
+
+  const hashedOtp = await bcrypt.hash(
+    otp,
+    10,
+  );
+
+  const expires = new Date();
+
+  expires.setMinutes(
+    expires.getMinutes() + 5,
+  );
+
+  await this.otpRepo.createOtp(
+    user.id,
+    hashedOtp,
+    expires,
+  );
+
+  // =====================================================
+  // Send OTP
+  // =====================================================
+
+  await this.notificationService.sendOtp(
+    email,
+    otp,
+    firstName || "Participant",
+  );
+
+  return user;
+}
+
+
 
   async verifyParticipantService(payload: verifyParticipantDto) {
     const { email, otp } = payload;

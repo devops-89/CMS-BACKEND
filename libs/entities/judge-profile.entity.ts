@@ -3,8 +3,8 @@ import {
   OneToOne, OneToMany, JoinColumn, CreateDateColumn,
 } from "typeorm";
 
-import {User, ContestJudge} from "@libs/entities";
-
+import { User } from "./user.entity";
+import { ContestJudge } from "./contest-judge.entity";
 
 
 @Entity("judge_profiles")

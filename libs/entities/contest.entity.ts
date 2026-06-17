@@ -3,8 +3,11 @@ import {
   CreateDateColumn, UpdateDateColumn,
   ManyToOne, OneToMany, JoinColumn,
 } from "typeorm";
-import { FormTemplate, Entry, Participant, User } from "@libs/entities";
-import { ContestJudge } from "@libs/entities/contest-judge.entity";
+import { FormTemplate } from "./form-template.entity";
+import { Entry } from "./entry.entity";
+import { Participant } from "./participant.entity";
+import { User } from "./user.entity";
+import { ContestJudge } from "./contest-judge.entity";
 import { VotingPeriod } from "./voting-period";
 import { EntryAssignment } from "./entry-assignment.entity";
 
