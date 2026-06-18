@@ -14,10 +14,10 @@ const judgeController = new ContestJudgeController();
 
 router.get("/judges/my/entries", authenticate, authorize(UserRole.JUDGE), judgeController.getMyEntries.bind(judgeController));
 router.post("/judges/my/entries/:entryId/evaluate", authenticate, authorize(UserRole.JUDGE), judgeController.evaluateEntry.bind(judgeController));
-router.get("/judges/my/entries/:entryId/evaluation", authenticate, authorize(UserRole.JUDGE,UserRole.ADMIN), judgeController.getEvaluation.bind(judgeController));
+router.get("/judges/my/entries/:entryId/evaluation", authenticate, authorize(UserRole.JUDGE,UserRole.ADMIN,UserRole.PARTICIPANT), judgeController.getEvaluation.bind(judgeController));
 router.put("/judges/my/entries/:entryId/evaluation", authenticate, authorize(UserRole.JUDGE), judgeController.updateEvaluation.bind(judgeController));
 
-router.use("/:contestId/entries",authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE), entryRoutes);
+router.use("/:contestId/entries",authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE,UserRole.PARTICIPANT), entryRoutes);
 // router.use("/",authenticate, authorize(UserRole.ADMIN), contestRoutes);
 router.use("/", contestRoutes);
 router.use("/:contestId/participants",authenticate, authorize(UserRole.ADMIN), participantRoutes);

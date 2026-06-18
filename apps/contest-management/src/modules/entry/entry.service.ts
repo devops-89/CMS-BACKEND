@@ -3,16 +3,19 @@ import {
   ContestRepository,
   FormSubmissionRepository,
   VotingPeriodRepository,
+  ParticipantRepository,
 } from "@libs/repositories";
 
-import { NotFoundError, InternalServerError } from "@libs/utils/errors.util";
+import { NotFoundError, InternalServerError, BadRequestError, ForbiddenError } from "@libs/utils/errors.util";
 import { S3Service } from "@libs/s3";
+import { UserRole } from "@libs/entities";
 
 export class EntryService {
   private repo = new EntryRepository();
   private contestRepo = new ContestRepository();
   private submissionRepo = new FormSubmissionRepository();
   private votingPeriodRepo = new VotingPeriodRepository();
+  private participantRepo = new ParticipantRepository();
 
   private async processFileUploads(
     contest_id: string,
@@ -138,7 +141,9 @@ export class EntryService {
   async createEntry(
     contest_id: string,
     body: any,
-    files: any[] = []
+    files: any[] = [],
+    userId?: string,
+    userRole?: string
   ) {
     const contest = await this.contestRepo.findById(contest_id);
     if (!contest) throw new NotFoundError("Contest not found");
@@ -150,10 +155,34 @@ export class EntryService {
     // Process and validate file uploads
     const processedData = await this.processFileUploads(contest_id, contest.entryLevelTemplate, body, files);
 
-    // Extract participant_id
-    const participant_id = body.participant_id;
-    if (!participant_id) {
-      throw new Error("participant_id is required");
+    // Resolve participant_id
+    let participant_id = body.participant_id;
+
+    if (userRole === UserRole.PARTICIPANT) {
+      if (!userId) {
+        throw new ForbiddenError("User ID not found in token");
+      }
+      const participant = await this.participantRepo.findOne({
+        where: { user_id: userId, contest_id },
+      });
+      if (!participant) {
+        throw new NotFoundError("Participant profile not found for this user in this contest");
+      }
+      participant_id = participant.id;
+    } else {
+      if (!participant_id) {
+        if (userId) {
+          const participant = await this.participantRepo.findOne({
+            where: { user_id: userId, contest_id },
+          });
+          if (!participant) {
+            throw new NotFoundError("Participant profile not found for this user in this contest");
+          }
+          participant_id = participant.id;
+        } else {
+          throw new BadRequestError("participant_id is required");
+        }
+      }
     }
 
     //  Step 1: create submission
@@ -253,7 +282,9 @@ export class EntryService {
     id: string,
     contest_id: string,
     body: any,
-    files: any[] = []
+    files: any[] = [],
+    userId?: string,
+    userRole?: string
   ) {
     //  check entry exists
     const existing = await this.repo.findById(id, contest_id);
@@ -262,6 +293,22 @@ export class EntryService {
     //  ensure submission exists
     if (!existing.submission_id) {
       throw new NotFoundError("Submission not found");
+    }
+
+    // Authorization & participant verification
+    if (userRole === UserRole.PARTICIPANT) {
+      if (!userId) {
+        throw new ForbiddenError("User ID not found in token");
+      }
+      const participant = await this.participantRepo.findOne({
+        where: { user_id: userId, contest_id },
+      });
+      if (!participant) {
+        throw new NotFoundError("Participant profile not found for this user in this contest");
+      }
+      if (existing.participant_id !== participant.id) {
+        throw new ForbiddenError("You are not authorized to update this entry");
+      }
     }
 
     const template = existing.contest?.entryLevelTemplate;
@@ -274,6 +321,12 @@ export class EntryService {
 
     //  update submission data
     await this.submissionRepo.update(existing.submission_id, processedData);
+
+    // If participant_id is provided in the body (and user is admin), we can update it
+    if (body.participant_id && userRole !== UserRole.PARTICIPANT) {
+      existing.participant_id = body.participant_id;
+      await this.repo.save(existing);
+    }
 
     //  return updated entry
     return await this.repo.findById(id, contest_id);
