@@ -9,7 +9,7 @@ type EntryParams = { contestId: string; eid: string };
 export class EntryController {
   create = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const data = await service.createEntry(req.params.contestId, req.body);
+      const data = await service.createEntry(req.params.contestId, req.body, req.files as Express.Multer.File[]);
       return res.status(201).json({ message: "Entry created", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
@@ -52,7 +52,8 @@ export class EntryController {
     const data = await service.updateEntry(
       req.params.eid,
       req.params.contestId,
-      req.body
+      req.body,
+      req.files as Express.Multer.File[]
     );
     return res.status(200).json({ message: "Entry updated", data });
   } catch (e: any) {
