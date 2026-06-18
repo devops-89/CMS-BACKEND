@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "@libs/middlewares/auth.middleware";
 import { EntryService } from "./entry.service";
 
 const service = new EntryService();
@@ -7,9 +8,15 @@ type ContestParams = { contestId: string };
 type EntryParams = { contestId: string; eid: string };
 
 export class EntryController {
-  create = async (req: Request<ContestParams>, res: Response) => {
+  create = async (req: AuthRequest<ContestParams>, res: Response) => {
     try {
-      const data = await service.createEntry(req.params.contestId, req.body, req.files as Express.Multer.File[]);
+      const data = await service.createEntry(
+        req.params.contestId,
+        req.body,
+        req.files as Express.Multer.File[],
+        req.user?.userId,
+        req.user?.role
+      );
       return res.status(201).json({ message: "Entry created", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
@@ -47,13 +54,15 @@ export class EntryController {
     }
   };
 
-  update = async (req: Request<EntryParams>, res: Response) => {
+  update = async (req: AuthRequest<EntryParams>, res: Response) => {
   try {
     const data = await service.updateEntry(
       req.params.eid,
       req.params.contestId,
       req.body,
-      req.files as Express.Multer.File[]
+      req.files as Express.Multer.File[],
+      req.user?.userId,
+      req.user?.role
     );
     return res.status(200).json({ message: "Entry updated", data });
   } catch (e: any) {
