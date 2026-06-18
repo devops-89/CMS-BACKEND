@@ -20,6 +20,14 @@ export class EntryRepository {
     });
   }
 
+  findByParticipant(contest_id: string, participant_id: string) {
+    return this.repo.find({
+      where: { contest_id, participant_id },
+      relations: ["participant", "submission"],
+      order: { created_at: "DESC" },
+    });
+  }
+
   findById(id: string, contest_id: string) {
     return this.repo.findOne({
       where: { id, contest_id },
