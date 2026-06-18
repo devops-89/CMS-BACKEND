@@ -23,18 +23,27 @@ export class EntryController {
     }
   };
 
-  getAll = async (req: Request<ContestParams>, res: Response) => {
+  getAll = async (req: AuthRequest<ContestParams>, res: Response) => {
     try {
-      const data = await service.getEntries(req.params.contestId);
+      const data = await service.getEntries(
+        req.params.contestId,
+        req.user?.userId,
+        req.user?.role
+      );
       return res.status(200).json({ message: "Entries fetched", data });
     } catch (e: any) {
       return res.status(e.statusCode || 500).json({ message: e.message });
     }
   };
 
-  getOne = async (req: Request<EntryParams>, res: Response) => {
+  getOne = async (req: AuthRequest<EntryParams>, res: Response) => {
     try {
-      const data = await service.getEntryById(req.params.eid, req.params.contestId);
+      const data = await service.getEntryById(
+        req.params.eid,
+        req.params.contestId,
+        req.user?.userId,
+        req.user?.role
+      );
       return res.status(200).json({ message: "Entry fetched", data });
     } catch (e: any) {
       return res.status(e.statusCode || 404).json({ message: e.message });

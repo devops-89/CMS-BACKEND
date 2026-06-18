@@ -237,10 +237,28 @@ export class EntryService {
     return entry;
   }
 
-  async getEntries(contest_id: string) {
+  async getEntries(contest_id: string, userId?: string, userRole?: string) {
     const contest = await this.contestRepo.findById(contest_id);
-    const entries = await this.repo.findByContest(contest_id);
-    if (!contest || !contest.entryLevelTemplate) {
+    if (!contest) throw new NotFoundError("Contest not found");
+
+    let entries: any[] = [];
+
+    if (userRole === UserRole.PARTICIPANT) {
+      if (!userId) {
+        throw new ForbiddenError("User ID not found in token");
+      }
+      const participant = await this.participantRepo.findOne({
+        where: { user_id: userId, contest_id },
+      });
+      if (!participant) {
+        return [];
+      }
+      entries = await this.repo.findByParticipant(contest_id, participant.id);
+    } else {
+      entries = await this.repo.findByContest(contest_id);
+    }
+
+    if (!contest.entryLevelTemplate) {
       return entries;
     }
 
@@ -252,9 +270,21 @@ export class EntryService {
     return processedEntries;
   }
 
-  async getEntryById(id: string, contest_id: string) {
+  async getEntryById(id: string, contest_id: string, userId?: string, userRole?: string) {
     const entry = await this.repo.findById(id, contest_id);
     if (!entry) throw new NotFoundError("Entry not found");
+
+    if (userRole === UserRole.PARTICIPANT) {
+      if (!userId) {
+        throw new ForbiddenError("User ID not found in token");
+      }
+      const participant = await this.participantRepo.findOne({
+        where: { user_id: userId, contest_id },
+      });
+      if (!participant || entry.participant_id !== participant.id) {
+        throw new ForbiddenError("You are not authorized to view this entry");
+      }
+    }
     
     const template = entry.contest?.entryLevelTemplate;
     const processedEntry = await this.appendDownloadUrlsToEntry(entry, template);
