@@ -30,10 +30,10 @@ export class Contest {
 
   @Column({
     type: "enum",
-    enum: ["Draft", "Published", "Offline"],
+    enum: ["Draft", "Published", "Offline", "SemiFinal", "Final", "Completed", "WinnerAnnounced"],
     default: "Draft",
   })
-  status!: "Draft" | "Published" | "Offline";
+  status!: "Draft" | "Published" | "Offline" | "SemiFinal" | "Final" | "Completed" | "WinnerAnnounced";
 
   @Column({ type: "simple-array", nullable: true })
   available_regions!: string[];

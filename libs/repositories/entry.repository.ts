@@ -1,5 +1,6 @@
 import { AppDataSource } from "@libs/database/data-source";
 import { Entry } from "@libs/entities";
+import { In } from "typeorm";
 
 export class EntryRepository {
   private repo = AppDataSource.getRepository(Entry);
@@ -34,6 +35,14 @@ export class EntryRepository {
       relations: ["participant", "submission", "votes", "contest", "contest.entryLevelTemplate"],
     });
   }
+
+  findByIds(ids: string[]) {
+    return this.repo.find({
+      where: { id: In(ids) },
+      relations: ["participant", "submission"],
+    });
+  }
+
 
   updateStatus(id: string, status: Entry["status"]) {
     return this.repo.update(id, { status });

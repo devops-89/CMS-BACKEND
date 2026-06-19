@@ -41,10 +41,10 @@ export class Entry {
 
   @Column({
     type: "enum",
-    enum: ["pending", "approved", "rejected"],
+    enum: ["pending", "approved", "rejected", "draft", "evaluated", "semifinal", "final", "winner"],
     default: "pending",
   })
-  status!: "pending" | "approved" | "rejected";
+  status!: "pending" | "approved" | "rejected" | "draft" | "evaluated" | "semifinal" | "final" | "winner";
 
   @OneToMany(() => Vote, (v) => v.entry)
   votes!: Vote[];

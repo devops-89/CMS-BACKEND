@@ -259,6 +259,10 @@ export class ContestJudgeService {
     });
     if (!entry) throw new NotFoundError("Entry not found");
 
+    if (entry.status !== "approved") {
+      throw new BadRequestError("Entry is not approved.Please get the entry approved first.");
+    }
+
     const contestId = entry.contest_id;
 
     // Check if the judge is assigned to this entry

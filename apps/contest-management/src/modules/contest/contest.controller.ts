@@ -138,5 +138,13 @@ export class ContestController {
     }
   };
 
-
+  bulkUpdateEntriesStatus = async (req: Request<ContestParams>, res: Response) => {
+    try {
+      const { entryIds, status } = req.body;
+      const data = await service.bulkUpdateEntriesStatus(req.params.id, entryIds, status);
+      return res.status(200).json({ message: "Entries updated successfully", data });
+    } catch (e: any) {
+      return res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
 }

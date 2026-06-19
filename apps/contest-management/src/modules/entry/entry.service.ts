@@ -299,7 +299,7 @@ export class EntryService {
   async updateStatus(
     id: string,
     contest_id: string,
-    status: "pending" | "approved" | "rejected"
+    status: "pending" | "approved" | "rejected" | "draft" | "evaluated" | "semifinal" | "final" | "winner"
   ) {
     const existing = await this.repo.findById(id, contest_id);
     if (!existing) throw new NotFoundError("Entry not found");

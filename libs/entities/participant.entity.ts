@@ -42,10 +42,10 @@ export class Participant {
 
   @Column({
     type: "enum",
-    enum: ["pending", "approved", "rejected"],
+    enum: ["pending", "approved", "rejected", "semi-finalist", "finalist", "winner"],
     default: "pending",
   })
-  status!: "pending" | "approved" | "rejected";
+  status!: "pending" | "approved" | "rejected" | "semi-finalist" | "finalist" | "winner";
 
   @OneToMany(() => Entry, (e) => e.participant)
   entries!: Entry[];

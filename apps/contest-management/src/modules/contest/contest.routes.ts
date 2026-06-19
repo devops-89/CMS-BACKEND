@@ -4,13 +4,14 @@ import { authorize } from "@libs/middlewares/role.middleware";
 import { authenticate } from "@libs/middlewares/auth.middleware";
 import { validate } from "@libs/middlewares/validate.middleware";
 import { UserRole } from "@libs/entities";
-import { createContestSchema, updateContestSchema, updateContestStatusSchema, contestIdParamSchema } from "@libs/dto/contest.dto";
+import { createContestSchema, updateContestSchema, updateContestStatusSchema, contestIdParamSchema, bulkUpdateEntriesStatusSchema } from "@libs/dto/contest.dto";
 
 const router = Router();
 const controller = new ContestController();
 
 router.get("/", controller.getAll.bind(controller));
 router.post("/", authenticate, authorize(UserRole.ADMIN), validate(createContestSchema, "body"), controller.createContest.bind(controller));
+router.patch("/:id/entries/bulk-status", authenticate, authorize(UserRole.ADMIN), validate(contestIdParamSchema, "params"), validate(bulkUpdateEntriesStatusSchema, "body"), controller.bulkUpdateEntriesStatus.bind(controller));
 
 router.get("/voting-period/:votingPeriodId", controller.getVotingPeriodDetail.bind(controller));
 router.put("/voting-period/:votingPeriodId", controller.updateVotingPeriod.bind(controller));

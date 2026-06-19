@@ -1,6 +1,6 @@
 import { ContestRepository, EntryRepository, ParticipantRepository, VotingPeriodRepository, ContestJudgeRepository, JudgeAssignedVotingPeriodRepository, CountryRepository } from "@libs/repositories";
 import { NotFoundError, InternalServerError, ConflictError, UnprocessableEntityError, BadRequestError } from "@libs/utils/errors.util";
-import { Contest, VotingPeriod, VotingType } from "@libs/entities";
+import { Contest, VotingPeriod, VotingType, Entry } from "@libs/entities";
 export class ContestService {
   private repo = new ContestRepository();
   private participantRepo = new ParticipantRepository();
@@ -473,5 +473,37 @@ async getContestOverview(id: string, userId?: string) {
     } catch {
       throw new InternalServerError("Failed to update voting period");
     }
+  }
+
+  async bulkUpdateEntriesStatus(
+    contestId: string,
+    entryIds: string[],
+    status: Entry["status"]
+  ) {
+    const contest = await this.repo.findById(contestId);
+    if (!contest) throw new NotFoundError("Contest not found");
+
+    const entries = await this.entryRepo.findByIds(entryIds);
+
+    const foundIds = entries.map((e) => e.id);
+    const missingIds = entryIds.filter((id) => !foundIds.includes(id));
+    if (missingIds.length > 0) {
+      throw new BadRequestError(`Entries not found: ${missingIds.join(", ")}`);
+    }
+
+    for (const entry of entries) {
+      if (entry.contest_id !== contestId) {
+        throw new BadRequestError(`Entry ${entry.id} does not belong to contest ${contestId}`);
+      }
+      if (entry.status !== "pending") {
+        throw new BadRequestError(`Entry ${entry.id} is not in pending status`);
+      }
+    }
+
+    for (const entryId of entryIds) {
+      await this.entryRepo.updateStatus(entryId, status);
+    }
+
+    return await this.entryRepo.findByIds(entryIds);
   }
 }
