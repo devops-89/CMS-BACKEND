@@ -20,6 +20,7 @@ import {
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
 import { UserService } from "./user.service";
+import { S3Service } from "@libs/s3";
 
 export class UserController {
   private userRepo = new UserRepository();
@@ -27,6 +28,7 @@ export class UserController {
   private judgeRepo = new JudgeProfileRepository();
   private participantRepo = new ParticipantProfileRepository();
   private userService = new UserService();
+  private s3Service = new S3Service();
 
 
 
@@ -94,6 +96,18 @@ export class UserController {
       limit
     });
 
+    if (result.users && result.users.length > 0) {
+      for (const user of result.users) {
+        if (user.avatarUrl) {
+          try {
+            (user as any).avatarDownloadUrl = await this.s3Service.getDownloadUrl(user.avatarUrl);
+          } catch (e) {
+            console.error("Failed to generate download url for user avatar", e);
+          }
+        }
+      }
+    }
+
     return res.status(200).json({
       message: "Users Fetched Successfully.",
       data: result
@@ -122,6 +136,14 @@ async getUserById(req:AuthRequest<getUserByIdDto>, res:Response){
             });
         }
 
+        if (user && user.avatarUrl) {
+          try {
+            (user as any).avatarDownloadUrl = await this.s3Service.getDownloadUrl(user.avatarUrl);
+          } catch (e) {
+            console.error("Failed to generate download url for user avatar", e);
+          }
+        }
+
         return res.status(200).json({
             message:"User Fetched Successfully.",
             data:user
@@ -134,6 +156,39 @@ async getUserById(req:AuthRequest<getUserByIdDto>, res:Response){
             error:error.message
         })
 
+    }
+}
+
+// Get User Details by Token
+async getUserDetailsByToken(req: AuthRequest, res: Response) {
+    try {
+        const userId = req.user!.userId;
+
+        const user = await this.userRepo.getUserById(userId);
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User Not Found!"
+            });
+        }
+
+        if (user && user.avatarUrl) {
+            try {
+                (user as any).avatarDownloadUrl = await this.s3Service.getDownloadUrl(user.avatarUrl);
+            } catch (e) {
+                console.error("Failed to generate download url for user avatar", e);
+            }
+        }
+
+        return res.status(200).json({
+            message: "User Details Fetched Successfully.",
+            data: user
+        });
+    } catch (error: any) {
+        return res.status(500).json({
+            message: "Failed To Fetch User Details!",
+            error: error.message
+        });
     }
 }
 
@@ -196,7 +251,7 @@ async updateUserDetails(req: AuthRequest<{ id: string }, {}, updateUserDto>, res
 // Create participant with pending status and trigger OTP email
 async createParticipant(req: Request<{}, {}, createParticipantDto>, res: Response) {
     try {
-        const user = await this.userService.createParticipantService(req.body);
+        const user = await this.userService.createParticipantService(req.body, req.files as any[]);
         return res.status(201).json({
             message: "Participant registered successfully. Please verify the OTP sent to your email.",
             data: {

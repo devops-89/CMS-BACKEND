@@ -4,10 +4,40 @@ import { authenticate } from "@libs/middlewares/auth.middleware";
 import { validate } from "@libs/middlewares/validate.middleware";
 import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
+import multer from "multer";
 
 import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema } from "@libs/dto/user.dto";
 
 const router=Router();
+const upload = multer();
+
+const parseMultipartData = (req: any, res: any, next: any) => {
+  if (req.body) {
+    const { contestId, countryId, formData, ...rest } = req.body;
+    let resolvedFormData = {};
+
+    if (formData) {
+      if (typeof formData === "string") {
+        try {
+          resolvedFormData = JSON.parse(formData);
+        } catch (e) {
+          // Allow validation middleware to catch format issues
+        }
+      } else if (typeof formData === "object") {
+        resolvedFormData = formData;
+      }
+    } else {
+      resolvedFormData = rest;
+    }
+
+    req.body = {
+      contestId,
+      countryId,
+      formData: resolvedFormData,
+    };
+  }
+  next();
+};
 
 const controller=new UserController();
 
@@ -25,27 +55,30 @@ router.patch(
   controller.updateUserStatus.bind(controller)
 );
 
+// get user details by token
+router.get("/me", authenticate, controller.getUserDetailsByToken.bind(controller));
+
 // get users , filter by role
-router.get("/all",authenticate,authorize(UserRole.ADMIN), validate(getUsersQuerySchema,"query"),controller.getAllUsers.bind(controller));
+router.get("/all",authenticate,authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE), validate(getUsersQuerySchema,"query"),controller.getAllUsers.bind(controller));
 
 // get user by id
-router.get("/:id", authenticate,authorize(UserRole.ADMIN), validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
+router.get("/:id", authenticate,authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE), validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
 
 // update user details by id
 router.put(
   "/:id",
   authenticate,
-  authorize(UserRole.ADMIN),
+  authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE),
   validate(getUserByIdSchema, "params"),
   validate(updateUserSchema, "body"),
   controller.updateUserDetails.bind(controller)
 );
 
 // delete user by id
-router.delete("/:id", authenticate, authorize(UserRole.ADMIN), validate(deleteUserByIdSchema, "params"), controller.deleteUserById.bind(controller));
+router.delete("/:id", authenticate, authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE), validate(deleteUserByIdSchema, "params"), controller.deleteUserById.bind(controller));
 
 // create participant
-router.post("/create-participant", validate(createParticipantSchema, "body"), controller.createParticipant.bind(controller));
+router.post("/create-participant", upload.any(), parseMultipartData, validate(createParticipantSchema, "body"), controller.createParticipant.bind(controller));
 
 // verify participant account with OTP
 router.post("/verify-otp", validate(verifyParticipantSchema, "body"), controller.verifyParticipant.bind(controller));

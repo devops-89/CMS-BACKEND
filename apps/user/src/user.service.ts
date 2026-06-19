@@ -15,6 +15,7 @@ import { ConflictError, BadRequestError, NotFoundError } from "@libs/utils/error
 import { createParticipantDto, verifyParticipantDto } from "@libs/dto/user.dto";
 import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
 import { generateAccessToken, generateRefreshToken } from "@libs/utils/jwt.util";
+import { S3Service } from "@libs/s3";
 
 export class UserService {
   private userRepo = new UserRepository();
@@ -29,7 +30,7 @@ export class UserService {
   private refreshTokenRepo = new RefreshTokenRepository();
 
 
-async createParticipantService(payload: createParticipantDto) {
+async createParticipantService(payload: createParticipantDto, files: any[] = []) {
   const { contestId, countryId, formData } = payload;
 
   // =====================================================
@@ -64,6 +65,9 @@ async createParticipantService(payload: createParticipantDto) {
     );
   }
 
+  // Process and upload files if any file_upload fields exist
+  const processedFormData = await this.processFileUploads(contestId, template, formData, files);
+
   // =====================================================
   // Extract Dynamic Fields
   // =====================================================
@@ -75,9 +79,10 @@ async createParticipantService(payload: createParticipantDto) {
   let password = "";
   let phone = "";
   let dateOfBirthStr = "";
+  let avatarUrl = "";
 
   for (const field of template.schema.fields) {
-    const value = formData[field.id];
+    const value = processedFormData[field.id];
 
     if (value === undefined || value === null) {
       continue;
@@ -132,6 +137,11 @@ async createParticipantService(payload: createParticipantDto) {
       label.includes("birth")
     ) {
       dateOfBirthStr = String(value);
+    } else if (
+      label === "avatar" ||
+      label.includes("avatar")
+    ) {
+      avatarUrl = String(value);
     }
   }
 
@@ -194,6 +204,7 @@ async createParticipantService(payload: createParticipantDto) {
     fullName,
     phone,
     countryId,
+    avatarUrl: avatarUrl || undefined,
   });
 
   // =====================================================
@@ -217,7 +228,7 @@ async createParticipantService(payload: createParticipantDto) {
     await this.submissionRepo.save(
       this.submissionRepo.create(
         template,
-        formData,
+        processedFormData,
       ),
     );
 
@@ -337,5 +348,105 @@ async createParticipantService(payload: createParticipantDto) {
         role: updatedUser.role,
       },
     };
+  }
+
+  private async processFileUploads(
+    contest_id: string,
+    template: any,
+    formData: Record<string, any>,
+    files: any[] = []
+  ): Promise<Record<string, any>> {
+    const fields = template.schema?.fields || [];
+    const data = { ...formData };
+
+    for (const field of fields) {
+      if (field.type === "file_upload") {
+        // Check if there is an uploaded file in multipart form-data
+        const uploadedFile = files && files.find((f) => f.fieldname === `formData[${field.id}]` || f.fieldname === field.id);
+        
+        let buffer: Buffer;
+        let filename: string;
+        let mimeType: string;
+
+        if (uploadedFile) {
+          buffer = uploadedFile.buffer;
+          filename = uploadedFile.originalname;
+          mimeType = uploadedFile.mimetype;
+        } else {
+          // If no uploaded file in multipart, check if a base64 string or S3 URL was passed in body data
+          const val = data[field.id];
+          if (!val) {
+            continue;
+          }
+
+          // If it's already an S3 URL, keep it
+          if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
+            continue;
+          }
+
+          if (typeof val === "string") {
+            if (val.startsWith("data:")) {
+              const matches = val.match(/^data:([^;]+);base64,(.+)$/);
+              if (!matches || matches.length !== 3) {
+                throw new Error(`Invalid file format for field: ${field.label || field.id}`);
+              }
+              mimeType = matches[1];
+              buffer = Buffer.from(matches[2], "base64");
+              const ext = mimeType.split("/")[1] || "bin";
+              filename = `upload-${Date.now()}.${ext}`;
+            } else {
+              buffer = Buffer.from(val, "base64");
+              filename = `upload-${Date.now()}`;
+              mimeType = "application/octet-stream";
+            }
+          } else if (typeof val === "object" && val !== null) {
+            const base64Data = val.base64 || val.data;
+            if (!base64Data) {
+              continue;
+            }
+            buffer = Buffer.from(base64Data, "base64");
+            filename = val.filename || val.name || `upload-${Date.now()}`;
+            mimeType = val.mimetype || val.type || "application/octet-stream";
+          } else {
+            continue;
+          }
+        }
+
+        // Validate file size (maxSize in MB)
+        const sizeInMb = buffer.length / (1024 * 1024);
+        const maxSize = parseFloat(field.config?.maxSize);
+        if (!isNaN(maxSize) && sizeInMb > maxSize) {
+          throw new Error(`File "${filename}" size (${sizeInMb.toFixed(2)} MB) exceeds the maximum allowed size of ${maxSize} MB.`);
+        }
+
+        // Validate file extension
+        const allowedExtensionsStr = field.config?.allowedExtensions;
+        if (allowedExtensionsStr) {
+          const allowedExtensions = allowedExtensionsStr
+            .split(",")
+            .map((ext: string) => ext.trim().toLowerCase());
+
+          let fileExt = "";
+          const dotIdx = filename.lastIndexOf(".");
+          if (dotIdx !== -1) {
+            fileExt = filename.slice(dotIdx).toLowerCase();
+          }
+
+          const isAllowed = allowedExtensions.includes(fileExt);
+          if (!isAllowed) {
+            throw new Error(`File type "${fileExt}" is not allowed. Allowed types: ${allowedExtensionsStr}`);
+          }
+        }
+
+        // Upload to S3
+        const s3Service = new S3Service();
+        const key = `users/contest-${contest_id}/${field.id}-${Date.now()}-${filename}`;
+        const url = await s3Service.uploadFile(key, buffer, mimeType);
+        
+        data[field.id] = url;
+      }
+    }
+
+    return data;
   }
 }
