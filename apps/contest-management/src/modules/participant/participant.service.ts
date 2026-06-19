@@ -7,6 +7,7 @@ import { ContestRepository } from "@libs/repositories";
 import { NotFoundError, InternalServerError, BadRequestError } from "@libs/utils/errors.util";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
+import { S3Service } from "@libs/s3";
 
 export class ParticipantService {
   private repo = new ParticipantRepository();
@@ -68,14 +69,28 @@ export class ParticipantService {
  async addParticipantByAdminService(
   contest_id: string,
   formData: Record<string, any>,
+  files: any[] = []
 ) {
   const contest = await this.getContest(contest_id);
   const template = await this.getTemplate(contest.user_level_template_id!);
 
   // Extract the actual field answers. If nested under a 'data' key, use it.
-  const answers = formData.data && typeof formData.data === "object" && !Array.isArray(formData.data)
+  let answers = formData.data && typeof formData.data === "object" && !Array.isArray(formData.data)
     ? formData.data
     : formData;
+
+  if (typeof formData.data === "string") {
+    try {
+      answers = JSON.parse(formData.data);
+    } catch {
+      answers = { ...formData };
+    }
+  } else if (!formData.data) {
+    answers = { ...formData };
+  }
+
+  // Process and upload files if any file_upload fields exist
+  answers = await this.processFileUploads(contest_id, template, answers, files);
 
   const submission = await this.submissionRepo.save(
     this.submissionRepo.create(template, answers),
@@ -223,6 +238,11 @@ private extractParticipantData(
     "birthday",
   ]),
 
+  avatarUrl: this.getFieldValue(fields, formData, [
+    "avatar",
+    "Avatar",
+  ]),
+
   schoolName: this.getFieldValue(fields, formData, [
     "school",
     "school name",
@@ -318,6 +338,7 @@ private async createOrUpdateParticipantUser(
         role: UserRole.PARTICIPANT,
         form_template_id: templateId,
         participant_profile_data: answers,
+        avatarUrl: participant.avatarUrl || undefined,
       }),
     );
   } else {
@@ -336,6 +357,9 @@ private async createOrUpdateParticipantUser(
     }
     if(participant.fullName){
       user.fullName = participant.fullName;
+    }
+    if (participant.avatarUrl) {
+      user.avatarUrl = participant.avatarUrl;
     }
 
     user.form_template_id = templateId;
@@ -409,4 +433,103 @@ private async ensureParticipantNotExists(contestId: string, userId: string) {
   }
 }
 
+  private async processFileUploads(
+    contest_id: string,
+    template: any,
+    formData: Record<string, any>,
+    files: any[] = []
+  ): Promise<Record<string, any>> {
+    const fields = template.schema?.fields || [];
+    const data = { ...formData };
+
+    for (const field of fields) {
+      if (field.type === "file_upload") {
+        // Check if there is an uploaded file in multipart form-data
+        const uploadedFile = files && files.find((f) => f.fieldname === `formData[${field.id}]` || f.fieldname === field.id);
+        
+        let buffer: Buffer;
+        let filename: string;
+        let mimeType: string;
+
+        if (uploadedFile) {
+          buffer = uploadedFile.buffer;
+          filename = uploadedFile.originalname;
+          mimeType = uploadedFile.mimetype;
+        } else {
+          // If no uploaded file in multipart, check if a base64 string or S3 URL was passed in body data
+          const val = data[field.id];
+          if (!val) {
+            continue;
+          }
+
+          // If it's already an S3 URL, keep it
+          if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
+            continue;
+          }
+
+          if (typeof val === "string") {
+            if (val.startsWith("data:")) {
+              const matches = val.match(/^data:([^;]+);base64,(.+)$/);
+              if (!matches || matches.length !== 3) {
+                throw new Error(`Invalid file format for field: ${field.label || field.id}`);
+              }
+              mimeType = matches[1];
+              buffer = Buffer.from(matches[2], "base64");
+              const ext = mimeType.split("/")[1] || "bin";
+              filename = `upload-${Date.now()}.${ext}`;
+            } else {
+              buffer = Buffer.from(val, "base64");
+              filename = `upload-${Date.now()}`;
+              mimeType = "application/octet-stream";
+            }
+          } else if (typeof val === "object" && val !== null) {
+            const base64Data = val.base64 || val.data;
+            if (!base64Data) {
+              continue;
+            }
+            buffer = Buffer.from(base64Data, "base64");
+            filename = val.filename || val.name || `upload-${Date.now()}`;
+            mimeType = val.mimetype || val.type || "application/octet-stream";
+          } else {
+            continue;
+          }
+        }
+
+        // Validate file size (maxSize in MB)
+        const sizeInMb = buffer.length / (1024 * 1024);
+        const maxSize = parseFloat(field.config?.maxSize);
+        if (!isNaN(maxSize) && sizeInMb > maxSize) {
+          throw new Error(`File "${filename}" size (${sizeInMb.toFixed(2)} MB) exceeds the maximum allowed size of ${maxSize} MB.`);
+        }
+
+        // Validate file extension
+        const allowedExtensionsStr = field.config?.allowedExtensions;
+        if (allowedExtensionsStr) {
+          const allowedExtensions = allowedExtensionsStr
+            .split(",")
+            .map((ext: string) => ext.trim().toLowerCase());
+
+          let fileExt = "";
+          const dotIdx = filename.lastIndexOf(".");
+          if (dotIdx !== -1) {
+            fileExt = filename.slice(dotIdx).toLowerCase();
+          }
+
+          const isAllowed = allowedExtensions.includes(fileExt);
+          if (!isAllowed) {
+            throw new Error(`File type "${fileExt}" is not allowed. Allowed types: ${allowedExtensionsStr}`);
+          }
+        }
+
+        // Upload to S3
+        const s3Service = new S3Service();
+        const key = `users/contest-${contest_id}/${field.id}-${Date.now()}-${filename}`;
+        const url = await s3Service.uploadFile(key, buffer, mimeType);
+        
+        data[field.id] = url;
+      }
+    }
+
+    return data;
+  }
 }
