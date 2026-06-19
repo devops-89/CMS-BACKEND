@@ -218,15 +218,13 @@ async createParticipant(req: Request<{}, {}, createParticipantDto>, res: Respons
 // Verify participant OTP and activate account
 async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Response) {
     try {
-        const user = await this.userService.verifyParticipantService(req.body);
+        const result = await this.userService.verifyParticipantService(req.body);
         return res.status(200).json({
             message: "Participant account activated successfully.",
             data: {
-                userId: user.id,
-                email: user.email,
-                fullName: user.fullName,
-                role: user.role,
-                status: user.status,
+                accessToken: result.accessToken,
+                refreshToken: result.refreshToken,
+                user: result.user,
             },
         });
     } catch (error: any) {

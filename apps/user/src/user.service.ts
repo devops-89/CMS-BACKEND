@@ -13,6 +13,8 @@ import { UserRole, UserStatus } from "@libs/entities";
 import { NotificationService } from "@libs/notifications/notification.service";
 import { ConflictError, BadRequestError, NotFoundError } from "@libs/utils/errors.util";
 import { createParticipantDto, verifyParticipantDto } from "@libs/dto/user.dto";
+import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
+import { generateAccessToken, generateRefreshToken } from "@libs/utils/jwt.util";
 
 export class UserService {
   private userRepo = new UserRepository();
@@ -24,121 +26,7 @@ export class UserService {
   private notificationService = new NotificationService();
   private submissionRepo = new FormSubmissionRepository();
   private participantEntityRepo = new ParticipantRepository();
-
-  // async createParticipantService(payload: createParticipantDto) {
-  //   const { contestId, countryId, formData } = payload;
-
-  //   // 1. Validate that the country exists
-  //   const country = await this.countryRepo.findById(countryId);
-  //   if (!country) {
-  //     throw new BadRequestError("Invalid country ID");
-  //   }
-
-  //   // 2. Fetch the Contest
-  //   const contest = await this.contestRepo.findById(contestId);
-  //   if (!contest) {
-  //     throw new NotFoundError("Contest not found");
-  //   }
-
-  //   // 3. Fetch the associated user level template from the contest
-  //   const template = contest.userLevelTemplate;
-  //   if (!template) {
-  //     throw new NotFoundError("User registration form template not configured for this contest");
-  //   }
-
-  //   // 4. Extract credentials dynamically based on field labels
-  //   const fields = template.schema.fields;
-  //   let firstName = "";
-  //   let lastName = "";
-  //   let email = "";
-  //   let password = "";
-  //   let phone = "";
-  //   let dateOfBirthStr = "";
-
-  //   for (const field of fields) {
-  //     const value = formData[field.id];
-  //     if (value === undefined || value === null) continue;
-
-  //     const label = field.label.trim().toLowerCase();
-
-  //     if (label === "firstname" || label === "first name" || label.includes("firstname")) {
-  //       firstName = String(value);
-  //     } else if (label === "lastname" || label === "last name" || label.includes("lastname")) {
-  //       lastName = String(value);
-  //     } else if (label === "mail" || label === "email" || label.includes("mail") || label.includes("email")) {
-  //       email = String(value);
-  //     } else if (label === "password" || label.includes("password")) {
-  //       password = String(value);
-  //     } else if (label === "phone" || label === "phone number" || label.includes("phone") || label.includes("mobile")) {
-  //       phone = String(value);
-  //     } else if (label === "date of birth" || label === "dob" || label === "birthdate" || label.includes("birth")) {
-  //       dateOfBirthStr = String(value);
-  //     }
-  //   }
-
-  //   // Ensure strings are set to empty strings rather than undefined if missing
-  //   firstName = firstName || "";
-  //   lastName = lastName || "";
-  //   phone = phone || "";
-
-  //   // 5. Validate that critical credentials (email and password) are present
-  //   if (!email) {
-  //     throw new BadRequestError("Mail/Email field is required");
-  //   }
-  //   if (!password) {
-  //     throw new BadRequestError("Password field is required");
-  //   }
-
-  //   // 6. Check if user already exists
-  //   const existingUser = await this.userRepo.findByEmail(email);
-  //   if (existingUser) {
-  //     throw new ConflictError("User already exists with this emailId!");
-  //   }
-
-  //   // 7. Hash password
-  //   const hashedPassword = await bcrypt.hash(password, 12);
-
-  //   // 8. Merge first name and last name into full name
-  //   const fullName = `${firstName} ${lastName}`.trim();
-
-  //   // 9. Create user in PENDING status
-  //   const user = await this.userRepo.createUser({
-  //     email,
-  //     password: hashedPassword,
-  //     role: UserRole.PARTICIPANT,
-  //     status: UserStatus.PENDING,
-  //     form_template_id:contest.userLevelTemplate?.id,
-  //     isSelfRegistered:true,
-  //     firstName,
-  //     lastName,
-  //     fullName,
-  //     phone,
-  //     countryId,
-  //   });
-
-  //   // 10. Create Participant Profile
-  //   const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
-  //   await this.participantRepo.createProfile({
-  //     user,
-  //     dateOfBirth: dob as Date,
-  //   });
-
-  //   // 11. Generate and save OTP linked to the user's UUID
-  //   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  //   const hashedOtp = await bcrypt.hash(otp, 10);
-
-  //   // Expiry (5 minutes)
-  //   const expires = new Date();
-  //   expires.setMinutes(expires.getMinutes() + 5);
-
-  //   // Save OTP
-  //   await this.otpRepo.createOtp(user.id, hashedOtp, expires);
-
-  //   // Send OTP via email
-  //   await this.notificationService.sendOtp(email, otp, firstName || "Participant");
-
-  //   return user;
-  // }
+  private refreshTokenRepo = new RefreshTokenRepository();
 
 
 async createParticipantService(payload: createParticipantDto) {
@@ -409,6 +297,28 @@ async createParticipantService(payload: createParticipantDto) {
       throw new NotFoundError("User not found after activation");
     }
 
-    return updatedUser;
+    const accessToken = generateAccessToken({
+      userId: updatedUser.id,
+      role: updatedUser.role,
+    });
+
+    const refreshToken = generateRefreshToken({
+      userId: updatedUser.id,
+    });
+
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 7);
+
+    await this.refreshTokenRepo.createToken(updatedUser.id, refreshToken, expires);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      },
+    };
   }
 }
