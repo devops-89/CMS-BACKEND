@@ -53,6 +53,14 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
     throw new NotFoundError("Contest not found");
   }
 
+  const now = new Date();
+  if (now < contest.start_date) {
+    throw new BadRequestError("Contest registration has not started yet");
+  }
+  if (now > contest.end_date) {
+    throw new BadRequestError("Contest registration has ended");
+  }
+
   // =====================================================
   // Fetch User Level Template
   // =====================================================

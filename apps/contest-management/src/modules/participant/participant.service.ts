@@ -83,6 +83,15 @@ export class ParticipantService {
   files: any[] = []
 ) {
   const contest = await this.getContest(contest_id);
+
+  const now = new Date();
+  if (now < contest.start_date) {
+    throw new BadRequestError("Contest registration has not started yet");
+  }
+  if (now > contest.end_date) {
+    throw new BadRequestError("Contest registration has ended");
+  }
+
   const template = await this.getTemplate(contest.user_level_template_id!);
 
   // Extract the actual field answers. If nested under a 'data' key, use it.
@@ -167,6 +176,17 @@ export class ParticipantService {
 
     if (!existing.submission_id) {
       throw new NotFoundError("Submission not found");
+    }
+
+    const contest = await this.contestRepo.findById(contest_id);
+    if (!contest) throw new NotFoundError("Contest not found");
+
+    const now = new Date();
+    if (now < contest.start_date) {
+      throw new BadRequestError("Contest registration has not started yet");
+    }
+    if (now > contest.end_date) {
+      throw new BadRequestError("Contest registration has ended");
     }
 
     await this.submissionRepo.update(existing.submission_id, formData);
