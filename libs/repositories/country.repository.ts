@@ -23,11 +23,15 @@ export class CountryRepository {
   }
 
   async findByName(name: string) {
-    return this.repo.findOne({ where: { name } });
+    return this.repo.createQueryBuilder("country")
+      .where("country.name ILIKE :name", { name })
+      .getOne();
   }
 
   async findByCode(code: string) {
-    return this.repo.findOne({ where: { code } });
+    return this.repo.createQueryBuilder("country")
+      .where("country.code ILIKE :code", { code })
+      .getOne();
   }
 
   async updateCountry(id: string, data: Partial<Country>) {

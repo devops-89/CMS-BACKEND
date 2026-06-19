@@ -21,7 +21,7 @@ export class ContestController {
 
   getAll = async (req: Request, res: Response) => {
     try {
-      const { status, search, page, limit } = req.query as Record<string, string>;
+      const { status, search, page, limit, country } = req.query as Record<string, string>;
       const parsedPage = page ? parseInt(page, 10) : 1;
       const parsedLimit = limit ? parseInt(limit, 10) : 10;
 
@@ -42,7 +42,7 @@ export class ContestController {
         }
       }
 
-      const data = await service.getContests(status, search, parsedPage, parsedLimit, userId);
+      const data = await service.getContests(status, search, parsedPage, parsedLimit, userId, country);
       return res.status(200).json({ message: "Contests fetched successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 500).json({ message: e.message });

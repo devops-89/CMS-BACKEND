@@ -70,6 +70,7 @@ async createParticipantService(payload: createParticipantDto) {
 
   let firstName = "";
   let lastName = "";
+  let fullName = "";
   let email = "";
   let password = "";
   let phone = "";
@@ -96,6 +97,15 @@ async createParticipantService(payload: createParticipantDto) {
       label.includes("lastname")
     ) {
       lastName = String(value);
+    } else if (
+      label === "full name" ||
+      label === "fullname" ||
+      label === "name" ||
+      label.includes("full name") ||
+      label.includes("fullname") ||
+      label.includes("name")
+    ) {
+      fullName = String(value);
     } else if (
       label === "mail" ||
       label === "email" ||
@@ -125,8 +135,15 @@ async createParticipantService(payload: createParticipantDto) {
     }
   }
 
-  firstName = firstName || "";
-  lastName = lastName || "";
+  fullName = fullName.trim();
+  if (fullName && (!firstName || !lastName)) {
+    const parts = fullName.split(/\s+/);
+    if (!firstName) firstName = parts[0] || "";
+    if (!lastName) lastName = parts.slice(1).join(" ") || "";
+  }
+
+  firstName = firstName.trim();
+  lastName = lastName.trim();
   phone = phone || "";
 
   // =====================================================
@@ -159,7 +176,7 @@ async createParticipantService(payload: createParticipantDto) {
 
   const hashedPassword = await bcrypt.hash(password, 12);
 
-  const fullName = `${firstName} ${lastName}`.trim();
+   fullName = fullName || `${firstName} ${lastName}`.trim();
 
   // =====================================================
   // Create User
