@@ -14,6 +14,7 @@ export enum UserRole {
   JUDGE = "judge",
   PARTICIPANT = "participant",
   MODERATOR = "moderator",
+  PUBLIC = "public",
 }
 
 export enum UserStatus {

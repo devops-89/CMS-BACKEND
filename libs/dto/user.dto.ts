@@ -63,3 +63,30 @@ export const verifyParticipantSchema = z.object({
 });
 
 export type verifyParticipantDto = z.infer<typeof verifyParticipantSchema>;
+
+export const createPublicUserSchema = z.object({
+  fullName: z
+    .string()
+    .min(1, "Full name is required"),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters long"),
+});
+
+export type createPublicUserDto = z.infer<typeof createPublicUserSchema>;
+
+export const verifyPublicUserSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+  otp: z
+    .string()
+    .regex(/^\d{6}$/, "OTP must be a 6-digit number"),
+});
+
+export type verifyPublicUserDto = z.infer<typeof verifyPublicUserSchema>;

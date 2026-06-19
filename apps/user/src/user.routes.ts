@@ -6,7 +6,7 @@ import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
 import multer from "multer";
 
-import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema } from "@libs/dto/user.dto";
+import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema, createPublicUserSchema, verifyPublicUserSchema } from "@libs/dto/user.dto";
 
 const router=Router();
 const upload = multer();
@@ -82,5 +82,11 @@ router.post("/create-participant", upload.any(), parseMultipartData, validate(cr
 
 // verify participant account with OTP
 router.post("/verify-otp", validate(verifyParticipantSchema, "body"), controller.verifyParticipant.bind(controller));
+
+// create public user (no authentication required)
+router.post("/create-public", validate(createPublicUserSchema, "body"), controller.createPublicUser.bind(controller));
+
+// verify public user account with OTP (no authentication required)
+router.post("/verify-public-otp", validate(verifyPublicUserSchema, "body"), controller.verifyPublicUser.bind(controller));
 
 export default router;

@@ -12,7 +12,7 @@ import {
 import { UserRole, UserStatus } from "@libs/entities";
 import { NotificationService } from "@libs/notifications/notification.service";
 import { ConflictError, BadRequestError, NotFoundError } from "@libs/utils/errors.util";
-import { createParticipantDto, verifyParticipantDto } from "@libs/dto/user.dto";
+import { createParticipantDto, verifyParticipantDto, createPublicUserDto, verifyPublicUserDto } from "@libs/dto/user.dto";
 import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
 import { generateAccessToken, generateRefreshToken } from "@libs/utils/jwt.util";
 import { S3Service } from "@libs/s3";
@@ -470,5 +470,121 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
     }
 
     return data;
+  }
+
+  async createPublicUserService(payload: createPublicUserDto) {
+    const { fullName, email, password } = payload;
+
+    // Check if user already exists
+    const existingUser = await this.userRepo.findByEmail(email);
+    if (existingUser) {
+      throw new ConflictError("User already exists with this emailId!");
+    }
+
+    // Split fullName into firstName and lastName
+    let firstName = "";
+    let lastName = "";
+    const name = fullName.trim();
+    if (name) {
+      const parts = name.split(/\s+/);
+      firstName = parts[0] || "";
+      lastName = parts.slice(1).join(" ") || "";
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Create user with PUBLIC role and PENDING status
+    const user = await this.userRepo.createUser({
+      email,
+      password: hashedPassword,
+      role: UserRole.PUBLIC,
+      status: UserStatus.PENDING,
+      isSelfRegistered: true,
+      firstName,
+      lastName,
+      fullName: name,
+    });
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const expires = new Date();
+    expires.setMinutes(expires.getMinutes() + 5);
+
+    // Store OTP in database
+    await this.otpRepo.createOtp(user.id, hashedOtp, expires);
+
+    // Send OTP to email
+    await this.notificationService.sendOtp(email, otp, firstName || "User");
+
+    return user;
+  }
+
+  async verifyPublicUserService(payload: verifyPublicUserDto) {
+    const { email, otp } = payload;
+
+    // Find user by email
+    const user = await this.userRepo.findByEmail(email);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    // Check if user is already active
+    if (user.status === UserStatus.ACTIVE) {
+      throw new BadRequestError("User is already active");
+    }
+
+    // Fetch the latest OTP for this user
+    const record = await this.otpRepo.findLatestOtp(user.id);
+    if (!record) {
+      throw new BadRequestError("OTP not found");
+    }
+
+    // Expiry check
+    if (record.expires_at < new Date()) {
+      throw new BadRequestError("OTP expired");
+    }
+
+    // Compare OTP
+    const isValid = await bcrypt.compare(otp, record.otp);
+    if (!isValid) {
+      throw new BadRequestError("Invalid OTP");
+    }
+
+    // Mark OTP as used
+    await this.otpRepo.markUsed(record.id);
+
+    // Update user status to ACTIVE
+    const updatedUser = await this.userRepo.updateUserStatus(user.id, UserStatus.ACTIVE);
+    if (!updatedUser) {
+      throw new NotFoundError("User not found after activation");
+    }
+
+    // Generate JWT access and refresh tokens
+    const accessToken = generateAccessToken({
+      userId: updatedUser.id,
+      role: updatedUser.role,
+    });
+
+    const refreshToken = generateRefreshToken({
+      userId: updatedUser.id,
+    });
+
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 7);
+
+    // Save refresh token
+    await this.refreshTokenRepo.createToken(updatedUser.id, refreshToken, expires);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      },
+    };
   }
 }

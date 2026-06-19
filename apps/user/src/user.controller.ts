@@ -17,6 +17,8 @@ import {
   updateUserDto,
   verifyParticipantDto,
   createParticipantDto,
+  createPublicUserDto,
+  verifyPublicUserDto,
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
 import { UserService } from "./user.service";
@@ -288,7 +290,47 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
             error: error.message,
         });
     }
-}
+  }
+
+  async createPublicUser(req: Request<{}, {}, createPublicUserDto>, res: Response) {
+    try {
+      const user = await this.userService.createPublicUserService(req.body);
+      return res.status(201).json({
+        message: "Public user registered successfully. Please verify the OTP sent to your email.",
+        data: {
+          userId: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+          status: user.status,
+        },
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 500).json({
+        message: "Failed to create public user!",
+        error: error.message,
+      });
+    }
+  }
+
+  async verifyPublicUser(req: Request<{}, {}, verifyPublicUserDto>, res: Response) {
+    try {
+      const result = await this.userService.verifyPublicUserService(req.body);
+      return res.status(200).json({
+        message: "Public user account activated successfully.",
+        data: {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          user: result.user,
+        },
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 500).json({
+        message: "Verification failed!",
+        error: error.message,
+      });
+    }
+  }
 
 }
 
