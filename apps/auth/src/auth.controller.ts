@@ -294,6 +294,28 @@ export class AuthController {
 
       await this.refreshTokenRepo.createToken(user.id, refreshToken, expires);
 
+      const fullUser = await this.userRepo.getUserById(user.id);
+      let contestId: string | null = null;
+      let contestCount = 0;
+      let contests: any[] = [];
+
+      if (fullUser) {
+        if (fullUser.participants) {
+          contestCount = fullUser.participants.length;
+          contests = fullUser.participants.map((p) => p.contest).filter(Boolean);
+          if (fullUser.participants.length > 0) {
+            contestId = fullUser.participants[0].contest_id;
+          }
+        } else if (fullUser.role === "judge" && fullUser.judgeProfile?.contestAssignments) {
+          const assignments = fullUser.judgeProfile.contestAssignments;
+          contestCount = assignments.length;
+          contests = assignments.map((a: any) => a.contest).filter(Boolean);
+          if (assignments.length > 0) {
+            contestId = assignments[0].contest_id;
+          }
+        }
+      }
+
       return res.json({
         message: "Login successful",
         data: {
@@ -303,6 +325,9 @@ export class AuthController {
             id: user.id,
             email: user.email,
             role: user.role,
+            contestId,
+            contestCount,
+            contests,
           },
         },
       });

@@ -339,6 +339,25 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
 
     await this.refreshTokenRepo.createToken(updatedUser.id, refreshToken, expires);
 
+    let contestId: string | null = null;
+    let contestCount = 0;
+    let contests: any[] = [];
+
+    if (updatedUser.participants) {
+      contestCount = updatedUser.participants.length;
+      contests = updatedUser.participants.map((p: any) => p.contest).filter(Boolean);
+      if (updatedUser.participants.length > 0) {
+        contestId = updatedUser.participants[0].contest_id;
+      }
+    } else if (updatedUser.role === "judge" && (updatedUser as any).judgeProfile?.contestAssignments) {
+      const assignments = (updatedUser as any).judgeProfile.contestAssignments;
+      contestCount = assignments.length;
+      contests = assignments.map((a: any) => a.contest).filter(Boolean);
+      if (assignments.length > 0) {
+        contestId = assignments[0].contest_id;
+      }
+    }
+
     return {
       accessToken,
       refreshToken,
@@ -346,6 +365,9 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
         id: updatedUser.id,
         email: updatedUser.email,
         role: updatedUser.role,
+        contestId,
+        contestCount,
+        contests,
       },
     };
   }
