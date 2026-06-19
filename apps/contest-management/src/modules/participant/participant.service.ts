@@ -54,15 +54,26 @@ export class ParticipantService {
   // }
 
   async getParticipants(contest_id: string) {
+    const contest = await this.contestRepo.findById(contest_id);
+    const template = contest?.user_level_template_id 
+      ? await this.templateRepo.findById(contest.user_level_template_id)
+      : null;
+
     const participants = await this.repo.findByContest(contest_id);
 
-    return participants.map((p) => {
-      if (p.submission?.data) {
-        delete p.submission.data.password;
-        delete p.submission.data.confirm_password;
-      }
-      return p;
-    });
+    return Promise.all(
+      participants.map(async (p) => {
+        if (p.submission?.data) {
+          delete p.submission.data.password;
+          delete p.submission.data.confirm_password;
+
+          if (template) {
+            p.submission = await this.appendDownloadUrlsToSubmission(p.submission, template);
+          }
+        }
+        return p;
+      })
+    );
   }
 
 
@@ -127,6 +138,16 @@ export class ParticipantService {
   async getParticipantById(id: string, contest_id: string) {
     const participant = await this.repo.findById(id, contest_id);
     if (!participant) throw new NotFoundError("Participant not found");
+
+    const contest = await this.contestRepo.findById(contest_id);
+    const template = contest?.user_level_template_id 
+      ? await this.templateRepo.findById(contest.user_level_template_id)
+      : null;
+
+    if (participant.submission && template) {
+      participant.submission = await this.appendDownloadUrlsToSubmission(participant.submission, template);
+    }
+
     return participant;
   }
 
@@ -531,5 +552,35 @@ private async ensureParticipantNotExists(contestId: string, userId: string) {
     }
 
     return data;
+  }
+
+  private async appendDownloadUrlsToSubmission(
+    submission: any,
+    template: any
+  ): Promise<any> {
+    if (!submission || !submission.data || !template) {
+      return submission;
+    }
+
+    const fields = this.flattenFields(template.schema?.fields || []);
+    const s3Service = new S3Service();
+    const submissionData = { ...submission.data };
+
+    for (const field of fields) {
+      if (field.type === "file_upload") {
+        const val = submissionData[field.id];
+        if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
+          try {
+            const downloadUrl = await s3Service.getDownloadUrl(val);
+            submissionData[`${field.id}_downloadUrl`] = downloadUrl;
+          } catch (error) {
+            console.error(`Failed to generate download URL for field ${field.id}:`, error);
+          }
+        }
+      }
+    }
+
+    submission.data = submissionData;
+    return submission;
   }
 }
