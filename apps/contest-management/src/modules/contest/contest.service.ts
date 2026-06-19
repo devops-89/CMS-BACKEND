@@ -60,8 +60,30 @@ export class ContestService {
     return await this.repo.save(contest);
   }
 
-  async getContests(status?: string, search?: string, page: number = 1, limit: number = 10, userId?: string) {
-    return await this.repo.findAll(status, search, page, limit, userId);
+  async getContests(status?: string, search?: string, page: number = 1, limit: number = 10, userId?: string, country?: string) {
+    let countryId: string | undefined;
+    if (country) {
+      const resolvedCountry = await this.countryRepo.findByName(country);
+      if (resolvedCountry) {
+        countryId = resolvedCountry.id;
+      } else {
+        const resolvedCountryByCode = await this.countryRepo.findByCode(country);
+        if (resolvedCountryByCode) {
+          countryId = resolvedCountryByCode.id;
+        } else {
+          return {
+            docs: [],
+            totalDocs: 0,
+            page,
+            limit,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPrevPage: false,
+          };
+        }
+      }
+    }
+    return await this.repo.findAll(status, search, page, limit, userId, countryId);
   }
 
   async getContestById(id: string) {
