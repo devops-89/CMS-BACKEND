@@ -369,6 +369,7 @@ export class ContestJudgeService {
       entry.score = totalScore;
     }
     entry.status = "evaluated";
+    entry.evaluatedAt = now;
     await entryRepo.save(entry);
 
     return {
