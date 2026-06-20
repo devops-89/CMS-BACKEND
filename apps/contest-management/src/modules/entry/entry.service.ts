@@ -186,8 +186,8 @@ export class EntryService {
     }
 
     // Check if participant already has an entry in this contest
-    const existingEntries = await this.repo.findByParticipant(contest_id, participant_id);
-    if (existingEntries.length > 0) {
+    const existingEntry = await this.repo.findOneByParticipant(participant_id);
+    if (existingEntry) {
       throw new ConflictError("You already have an entry in this contest");
     }
 

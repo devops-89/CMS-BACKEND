@@ -56,6 +56,12 @@ export class EntryRepository {
     });
   }
 
+  findOneByParticipant(participant_id: string) {
+    return this.repo.findOne({
+      where: { participant_id },
+    });
+  }
+
   findByIds(ids: string[]) {
     return this.repo.find({
       where: { id: In(ids) },
