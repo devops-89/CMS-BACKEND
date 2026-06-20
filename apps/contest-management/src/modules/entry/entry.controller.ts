@@ -25,10 +25,16 @@ export class EntryController {
 
   getAll = async (req: AuthRequest<ContestParams>, res: Response) => {
     try {
+      const { status, page, limit } = req.query as Record<string, string>;
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const limitNum = limit ? parseInt(limit, 10) : 10;
       const data = await service.getEntries(
         req.params.contestId,
         req.user?.userId,
-        req.user?.role
+        req.user?.role,
+        status,
+        pageNum,
+        limitNum
       );
       return res.status(200).json({ message: "Entries fetched", data });
     } catch (e: any) {

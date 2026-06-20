@@ -13,20 +13,40 @@ export class EntryRepository {
     return this.repo.save(entry);
   }
 
-  findByContest(contest_id: string) {
-    return this.repo.find({
-      where: { contest_id },
+  findByContest(contest_id: string, status?: string, page?: number, limit?: number) {
+    const where: any = { contest_id };
+    if (status) {
+      where.status = status;
+    }
+    const options: any = {
+      where,
       relations: ["participant", "submission"],
       order: { created_at: "DESC" },
-    });
+    };
+    if (page !== undefined && limit !== undefined) {
+      options.skip = (page - 1) * limit;
+      options.take = limit;
+      return this.repo.findAndCount(options);
+    }
+    return this.repo.find(options).then(docs => [docs, docs.length] as [Entry[], number]);
   }
 
-  findByParticipant(contest_id: string, participant_id: string) {
-    return this.repo.find({
-      where: { contest_id, participant_id },
+  findByParticipant(contest_id: string, participant_id: string, status?: string, page?: number, limit?: number) {
+    const where: any = { contest_id, participant_id };
+    if (status) {
+      where.status = status;
+    }
+    const options: any = {
+      where,
       relations: ["participant", "submission"],
       order: { created_at: "DESC" },
-    });
+    };
+    if (page !== undefined && limit !== undefined) {
+      options.skip = (page - 1) * limit;
+      options.take = limit;
+      return this.repo.findAndCount(options);
+    }
+    return this.repo.find(options).then(docs => [docs, docs.length] as [Entry[], number]);
   }
 
   findById(id: string, contest_id: string) {

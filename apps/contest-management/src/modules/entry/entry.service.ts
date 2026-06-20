@@ -248,11 +248,19 @@ export class EntryService {
     return entry;
   }
 
-  async getEntries(contest_id: string, userId?: string, userRole?: string) {
+  async getEntries(
+    contest_id: string,
+    userId?: string,
+    userRole?: string,
+    status?: string,
+    page: number = 1,
+    limit: number = 10
+  ) {
     const contest = await this.contestRepo.findById(contest_id);
     if (!contest) throw new NotFoundError("Contest not found");
 
     let entries: any[] = [];
+    let totalDocs = 0;
 
     if (userRole === UserRole.PARTICIPANT) {
       if (!userId) {
@@ -262,23 +270,48 @@ export class EntryService {
         where: { user_id: userId, contest_id },
       });
       if (!participant) {
-        return [];
+        return {
+          docs: [],
+          totalDocs: 0,
+          page,
+          limit,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPrevPage: false,
+        };
       }
-      entries = await this.repo.findByParticipant(contest_id, participant.id);
+      const [resEntries, count] = await this.repo.findByParticipant(contest_id, participant.id, status, page, limit);
+      entries = resEntries;
+      totalDocs = count;
     } else {
-      entries = await this.repo.findByContest(contest_id);
-    }
-
-    if (!contest.entryLevelTemplate) {
-      return entries;
+      const [resEntries, count] = await this.repo.findByContest(contest_id, status, page, limit);
+      entries = resEntries;
+      totalDocs = count;
     }
 
     const processedEntries = [];
-    for (const entry of entries) {
-      const processed = await this.appendDownloadUrlsToEntry(entry, contest.entryLevelTemplate);
-      processedEntries.push(processed);
+    if (contest.entryLevelTemplate) {
+      for (const entry of entries) {
+        const processed = await this.appendDownloadUrlsToEntry(entry, contest.entryLevelTemplate);
+        processedEntries.push(processed);
+      }
+    } else {
+      processedEntries.push(...entries);
     }
-    return processedEntries;
+
+    const totalPages = Math.ceil(totalDocs / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      docs: processedEntries,
+      totalDocs,
+      page,
+      limit,
+      totalPages,
+      hasNextPage,
+      hasPrevPage,
+    };
   }
 
   async getEntryById(id: string, contest_id: string, userId?: string, userRole?: string) {

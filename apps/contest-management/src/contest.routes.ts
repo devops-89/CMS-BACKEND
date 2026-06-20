@@ -18,7 +18,7 @@ router.get("/judges/my/entries/:entryId/evaluation", authenticate, authorize(Use
 router.put("/judges/my/entries/:entryId/evaluation", authenticate, authorize(UserRole.JUDGE), judgeController.updateEvaluation.bind(judgeController));
 
 router.use("/", contestRoutes);
-router.use("/:contestId/entries",authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE,UserRole.PARTICIPANT), entryRoutes);
+router.use("/:contestId/entries",authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE,UserRole.PARTICIPANT,UserRole.PUBLIC), entryRoutes);
 router.use("/:contestId/participants",authenticate, authorize(UserRole.ADMIN), participantRoutes);
 router.use("/:contestId/votes",authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE), voteRoutes);
 router.use("/:contestId/judges", authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE), judgeRoutes);
