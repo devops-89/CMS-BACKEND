@@ -6,7 +6,7 @@ import {
   ParticipantRepository,
 } from "@libs/repositories";
 
-import { NotFoundError, InternalServerError, BadRequestError, ForbiddenError } from "@libs/utils/errors.util";
+import { NotFoundError, InternalServerError, BadRequestError, ForbiddenError, ConflictError } from "@libs/utils/errors.util";
 import { S3Service } from "@libs/s3";
 import { UserRole } from "@libs/entities";
 
@@ -185,6 +185,12 @@ export class EntryService {
       }
     }
 
+    // Check if participant already has an entry in this contest
+    const existingEntries = await this.repo.findByParticipant(contest_id, participant_id);
+    if (existingEntries.length > 0) {
+      throw new ConflictError("You already has an entry in this contest");
+    }
+
     //  Step 1: create submission
     const submission = this.submissionRepo.create(
       contest.entryLevelTemplate,
@@ -193,11 +199,16 @@ export class EntryService {
 
     const savedSubmission = await this.submissionRepo.save(submission);
 
+    const isDraft = body.isDraft === true || body.isDraft === "true";
+
     //  Step 2: create entry
     const entry = this.repo.create({
       contest_id,
       participant_id,
       submission_id: savedSubmission.id,
+      isDraft,
+      status: isDraft ? "draft" : "pending",
+      draftedAt: isDraft ? new Date() : null,
     });
 
     try {
