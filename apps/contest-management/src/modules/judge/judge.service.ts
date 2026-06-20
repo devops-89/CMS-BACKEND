@@ -364,11 +364,12 @@ export class ContestJudgeService {
     assignment.reviewed_at = now;
     await entryAssignmentRepo.save(assignment);
 
-    // Update Entry score
+    // Update Entry score and status
     if ("score" in entry) {
       entry.score = totalScore;
-      await entryRepo.save(entry);
     }
+    entry.status = "evaluated";
+    await entryRepo.save(entry);
 
     return {
       message: "Evaluation submitted successfully",
@@ -511,11 +512,12 @@ export class ContestJudgeService {
     assignment.reviewed_at = now;
     await entryAssignmentRepo.save(assignment);
 
-    // Update Entry score
+    // Update Entry score and status
     if ("score" in entry) {
       entry.score = totalScore;
-      await entryRepo.save(entry);
     }
+    entry.status = "evaluated";
+    await entryRepo.save(entry);
 
     return {
       message: "Evaluation updated successfully",

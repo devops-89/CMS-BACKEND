@@ -49,6 +49,18 @@ export class Entry {
   @OneToMany(() => Vote, (v) => v.entry)
   votes!: Vote[];
 
+  @Column({
+  type: "timestamp",
+  nullable: true,
+})
+draftedAt!: Date | null;
+
+@Column({
+  type: "boolean",
+  default: false,
+})
+isDraft!: boolean;
+
   @OneToMany(
     () => EntryAssignment,
     (assignment) => assignment.entry,
