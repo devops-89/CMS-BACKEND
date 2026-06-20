@@ -10,6 +10,7 @@ import { User } from "./user.entity";
 import { ContestJudge } from "./contest-judge.entity";
 import { VotingPeriod } from "./voting-period";
 import { EntryAssignment } from "./entry-assignment.entity";
+import { Vote } from "./vote.entity";
 
 @Entity("contests")
 export class Contest {
@@ -87,6 +88,9 @@ available_countries?: string[];
     (assignment) => assignment.contest,
   )
   entryAssignments!: EntryAssignment[];
+
+  @OneToMany(() => Vote, (vote) => vote.contest)
+votes!: Vote[];
 
   @ManyToOne(() => User, {
   nullable: true,

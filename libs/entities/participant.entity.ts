@@ -4,7 +4,7 @@ import {
   OneToMany, JoinColumn, Index,
 } from "typeorm";
 
-import { Entry, FormSubmission, Contest, User } from "@libs/entities";
+import { Entry, FormSubmission, Contest, User, Vote } from "@libs/entities";
 
 @Entity("participants")
 export class Participant {
@@ -23,6 +23,9 @@ export class Participant {
   @OneToOne(() => FormSubmission, { onDelete: "CASCADE", eager: true })
   @JoinColumn({ name: "submission_id" })
   submission!: FormSubmission;
+
+  @OneToMany(() => Vote, (vote) => vote.participant)
+votes!: Vote[];
 
   @Column()
   submission_id!: string;

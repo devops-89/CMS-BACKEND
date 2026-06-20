@@ -1,18 +1,25 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "@libs/middlewares/auth.middleware";
 import { VoteService } from "./vote.service";
 
 const service = new VoteService();
 
 type ContestParams = { contestId: string };
+type CastVoteParams = { contestId: string; entryId: string };
 type VoteParams = { contestId: string; vid: string };
 
 export class VoteController {
-  cast = async (req: Request<ContestParams>, res: Response) => {
+  cast = async (req: AuthRequest<CastVoteParams>, res: Response) => {
     try {
-      const data = await service.castVote(req.params.contestId, {
-        ...req.body,
-        ip_address: req.ip,  // auto-capture ip from request
-      });
+      const data = await service.castVote(
+        req.params.contestId,
+        req.params.entryId,
+        req.user?.userId,
+        {
+          ...req.body,
+          ip_address: req.ip,  // auto-capture ip from request
+        }
+      );
       return res.status(201).json({ message: "Vote cast successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });

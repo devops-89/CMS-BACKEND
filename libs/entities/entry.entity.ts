@@ -50,6 +50,12 @@ export class Entry {
   votes!: Vote[];
 
   @Column({
+  type: "int",
+  default: 0,
+})
+voteCount!: number;
+
+  @Column({
   type: "timestamp",
   nullable: true,
 })

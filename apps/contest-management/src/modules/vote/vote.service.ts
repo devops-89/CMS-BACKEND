@@ -1,47 +1,115 @@
 
-import {VoteRepository, EntryRepository} from "@libs/repositories";
-import { NotFoundError, ConflictError, InternalServerError } from "@libs/utils/errors.util";
+import { VoteRepository, EntryRepository } from "@libs/repositories";
+import { NotFoundError, ConflictError, InternalServerError, ForbiddenError, BadRequestError, UnprocessableEntityError } from "@libs/utils/errors.util";
+import { AppDataSource } from "@libs/database/data-source";
+import { User, VotingPeriod, VotingType } from "@libs/entities";
+import * as crypto from "crypto";
 
 export class VoteService {
   private repo = new VoteRepository();
   private entryRepo = new EntryRepository();
 
-  async castVote(contest_id: string, payload: {
-    entry_id: string;
-    vote_email: string;
-    user_email?: string;
-    schedule_name?: string;
-    vote_count?: number;
-    payment_status?: "paid" | "unpaid";
-    judge_score?: number;
-    ip_address?: string;
-    session_id?: string;
-    fingerprint?: string;
-  }) {
+  async castVote(
+    contest_id: string,
+    entry_id: string,
+    userId?: string,
+    payload: {
+      comment?: string;
+      ip_address?: string;
+      session_id?: string;
+      fingerprint?: string;
+      judge_score?: number;
+    } = {}
+  ) {
+    if (!entry_id || entry_id === "undefined") {
+      throw new BadRequestError("Entry ID is required and must be valid");
+    }
+
+    if (!userId) {
+      throw new ForbiddenError("User ID not found in token");
+    }
+
+    if (!payload.comment || payload.comment.trim() === "") {
+      throw new UnprocessableEntityError("Comment is required");
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const voterEmail = user.email || "";
+
     // 1. verify entry belongs to this contest
-    const entry = await this.entryRepo.findById(payload.entry_id, contest_id);
+    const entry = await this.entryRepo.findById(entry_id, contest_id);
     if (!entry) throw new NotFoundError("Entry not found");
-    if (entry.status !== "approved") throw new ConflictError("Entry is not approved for voting");
+    if (entry.status !== "semifinal") throw new ConflictError("Entry is not moved to semifinal for voting");
+
+    // 1.1 verify active public voting period exists and is active currently
+    const now = new Date();
+    const votingPeriodRepo = AppDataSource.getRepository(VotingPeriod);
+    const votingPeriod = await votingPeriodRepo.findOne({
+      where: {
+        contest_id,
+        voting_type: VotingType.PUBLIC,
+        is_active: true,
+      },
+    });
+
+    if (!votingPeriod) {
+      throw new ConflictError("Active public voting period not found for this contest");
+    }
+
+    if (now < votingPeriod.start_date || now > votingPeriod.end_date) {
+      throw new ConflictError("Public voting period is not active currently");
+    }
 
     // 2. duplicate check
     const duplicate = await this.repo.findDuplicate(
-      payload.entry_id,
-      payload.vote_email,
-      payload.ip_address || "",
-      payload.fingerprint || ""
+      entry_id,
+      voterEmail,
+      user.id
     );
     if (duplicate) throw new ConflictError("You have already voted for this entry");
 
+    const sessionId = payload.session_id || crypto.randomBytes(16).toString("hex");
+    const fingerprint = payload.fingerprint || crypto.randomBytes(16).toString("hex");
+
     // 3. save vote
-    const vote = this.repo.create(payload);
-    const saved = await this.repo.save(vote);
+    const vote = this.repo.create({
+      entry_id,
+      contest_id,
+      participant_id: entry.participant_id,
+      user_id: user.id,
+      voter_email: voterEmail,
+      voter_name: user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim() || null,
+      comment: payload.comment,
+      commentedAt: now,
+      ip_address: payload.ip_address || null,
+      session_id: sessionId,
+      fingerprint: fingerprint,
+      judge_score: payload.judge_score || null,
+    });
+    try {
+      const saved = await this.repo.save(vote);
 
-    // 4. recalculate and update entry score
-    const scoreData = await this.repo.getScoreForEntry(payload.entry_id);
-    const newScore = parseFloat(scoreData.avg_judge) || parseInt(scoreData.total_votes);
-    await this.entryRepo.updateScore(payload.entry_id, newScore);
+      // 4. recalculate and update entry score and voteCount
+      const scoreData = await this.repo.getScoreForEntry(entry_id);
+      const avgJudge = parseFloat(scoreData.avg_judge) || 0;
+      const totalVotes = parseInt(scoreData.total_votes, 10) || 0;
 
-    return saved;
+      entry.score = avgJudge || totalVotes;
+      entry.voteCount = totalVotes;
+      await this.entryRepo.save(entry);
+
+      return saved;
+    } catch (error: any) {
+      if (error.message && error.message.includes('violates not-null constraint') && error.message.includes('entry_id')) {
+        throw new BadRequestError("Invalid vote: Entry ID is missing or invalid");
+      }
+      throw error;
+    }
   }
 
   async getVotes(contest_id: string, search?: string) {

@@ -20,7 +20,7 @@ export class VoteRepository {
 
     if (search) {
       qb.andWhere(
-        "vote.vote_email ILIKE :search OR vote.user_email ILIKE :search",
+        "vote.voter_email ILIKE :search OR vote.user_email ILIKE :search",
         { search: `%${search}%` }
       );
     }
@@ -29,21 +29,27 @@ export class VoteRepository {
   }
 
   // duplicate check
-  findDuplicate(entry_id: string, vote_email: string, ip: string, fingerprint: string) {
-    return this.repo.createQueryBuilder("vote")
-      .where("vote.entry_id = :entry_id", { entry_id })
-      .andWhere(
-        "(vote.vote_email = :email OR vote.ip_address = :ip OR vote.fingerprint = :fp)",
-        { email: vote_email, ip, fp: fingerprint }
-      )
-      .getOne();
+  findDuplicate(entry_id: string, voter_email: string, user_id?: string | null) {
+    const qb = this.repo.createQueryBuilder("vote")
+      .where("vote.entry_id = :entry_id", { entry_id });
+
+    if (user_id) {
+      qb.andWhere(
+        "(vote.voter_email = :voter_email OR vote.user_id = :user_id)",
+        { voter_email, user_id }
+      );
+    } else {
+      qb.andWhere("vote.voter_email = :voter_email", { voter_email });
+    }
+
+    return qb.getOne();
   }
 
   // recalculate score for an entry
   getScoreForEntry(entry_id: string) {
     return this.repo.createQueryBuilder("vote")
       .select("COALESCE(AVG(vote.judge_score), 0)", "avg_judge")
-      .addSelect("COALESCE(SUM(vote.vote_count), 0)", "total_votes")
+      .addSelect("COUNT(vote.id)", "total_votes")
       .where("vote.entry_id = :entry_id", { entry_id })
       .getRawOne();
   }
