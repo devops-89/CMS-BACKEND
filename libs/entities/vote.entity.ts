@@ -31,14 +31,18 @@ export class Vote {
   id!: string;
 
   @ManyToOne(() => Entry, (entry) => entry.votes, {
-    onDelete: "CASCADE",
-  })
-  @JoinColumn({ name: "entry_id" })
-  entry!: Entry;
+  nullable: true,
+  onDelete: "CASCADE",
+})
+@JoinColumn({ name: "entry_id" })
+entry?: Entry | null;
 
-  @Column()
-  @Index()
-  entry_id!: string;
+@Column({
+  type: "uuid",
+  nullable: true,
+})
+@Index()
+entry_id!: string | null;
 
   @ManyToOne(() => Contest, (contest) => contest.votes, {
     onDelete: "CASCADE",
