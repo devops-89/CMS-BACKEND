@@ -115,7 +115,6 @@ export class VoteService {
       const avgJudge = parseFloat(scoreData.avg_judge) || 0;
       const totalVotes = parseInt(scoreData.total_votes, 10) || 0;
 
-      entry.score = avgJudge || totalVotes;
       entry.voteCount = totalVotes;
       await this.entryRepo.save(entry);
 
