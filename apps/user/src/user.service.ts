@@ -9,7 +9,8 @@ import {
   FormSubmissionRepository,
   ParticipantRepository,
 } from "@libs/repositories";
-import { UserRole, UserStatus } from "@libs/entities";
+import { UserRole, UserStatus, Entry } from "@libs/entities";
+import { AppDataSource } from "@libs/database/data-source";
 import { NotificationService } from "@libs/notifications/notification.service";
 import { ConflictError, BadRequestError, NotFoundError } from "@libs/utils/errors.util";
 import { createParticipantDto, verifyParticipantDto, createPublicUserDto, verifyPublicUserDto } from "@libs/dto/user.dto";
@@ -593,6 +594,67 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
         email: updatedUser.email,
         role: updatedUser.role,
       },
+    };
+  }
+
+  async listEntries(status?: string, page: number = 1, limit: number = 10) {
+    const entryRepo = AppDataSource.getRepository(Entry);
+
+    const qb = entryRepo.createQueryBuilder("entry")
+      .innerJoinAndSelect("entry.contest", "contest")
+      .leftJoinAndSelect("contest.entryLevelTemplate", "entryLevelTemplate")
+      .innerJoinAndSelect("entry.participant", "participant")
+      .leftJoinAndSelect("entry.submission", "submission")
+      .orderBy("entry.created_at", "DESC");
+
+    if (status) {
+      qb.andWhere("entry.status = :status", { status });
+    }
+
+    qb.skip((page - 1) * limit);
+    qb.take(limit);
+
+    const [docs, totalDocs] = await qb.getManyAndCount();
+
+    const s3Service = new S3Service();
+    const processedDocs = [];
+
+    for (const entry of docs) {
+      const template = entry.contest?.entryLevelTemplate;
+      if (template && entry.submission?.data) {
+        const fields = template.schema?.fields || [];
+        const submissionData = { ...entry.submission.data };
+
+        for (const field of fields) {
+          if (field.type === "file_upload") {
+            const val = submissionData[field.id];
+            if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
+              try {
+                const downloadUrl = await s3Service.getDownloadUrl(val);
+                submissionData[`${field.id}_downloadUrl`] = downloadUrl;
+              } catch (error) {
+                console.error(`Failed to generate download URL for field ${field.id}:`, error);
+              }
+            }
+          }
+        }
+        entry.submission.data = submissionData;
+      }
+      processedDocs.push(entry);
+    }
+
+    const totalPages = Math.ceil(totalDocs / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      docs: processedDocs,
+      totalDocs,
+      page,
+      limit,
+      totalPages,
+      hasNextPage,
+      hasPrevPage,
     };
   }
 }

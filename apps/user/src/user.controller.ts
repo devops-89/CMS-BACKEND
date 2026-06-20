@@ -332,5 +332,23 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
     }
   }
 
-}
+  listEntries = async (req: AuthRequest, res: Response) => {
+    try {
+      const { status, page, limit } = req.query as Record<string, string>;
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const limitNum = limit ? parseInt(limit, 10) : 10;
 
+      const data = await this.userService.listEntries(status, pageNum, limitNum);
+
+      return res.status(200).json({
+        message: "Entries fetched successfully.",
+        data,
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 500).json({
+        message: "Failed to fetch entries!",
+        error: error.message,
+      });
+    }
+  };
+}

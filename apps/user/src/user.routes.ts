@@ -58,6 +58,9 @@ router.patch(
 // get user details by token
 router.get("/me", authenticate, controller.getUserDetailsByToken.bind(controller));
 
+// get logged-in user's entries
+router.get("/entries", authenticate, controller.listEntries.bind(controller));
+
 // get users , filter by role
 router.get("/all",authenticate,authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE), validate(getUsersQuerySchema,"query"),controller.getAllUsers.bind(controller));
 
