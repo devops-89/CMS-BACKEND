@@ -5,7 +5,7 @@ import {
   JoinColumn, Index,
 } from "typeorm";
 
-import { Contest, Participant, Vote, FormSubmission } from "@libs/entities";
+import { Contest, Participant, Vote, FormSubmission, User } from "@libs/entities";
 import { EntryAssignment } from "./entry-assignment.entity";
 
 @Entity("entries")
@@ -61,11 +61,49 @@ draftedAt!: Date | null;
 })
 isDraft!: boolean;
 
+@Column({
+  type: "text",
+  nullable: true,
+})
+rejectReason!: string | null;
+
+@Column({
+  type: "timestamp",
+  nullable: true,
+})
+rejectedAt!: Date | null;
+
+@Column({
+  type: "timestamp",
+  nullable: true,
+})
+evaluatedAt!: Date | null;
+
+@Column({
+  type: "timestamp",
+  nullable: true,
+})
+semiFinalAt!: Date | null;
+
+@Column({
+  type: "timestamp",
+  nullable: true,
+})
+finalAt!: Date | null;
+
+@Column({
+  type: "timestamp",
+  nullable: true,
+})
+winnerAt!: Date | null;
+
+
   @OneToMany(
     () => EntryAssignment,
     (assignment) => assignment.entry,
   )
   entryAssignments!: EntryAssignment[];
+
 
   @CreateDateColumn()
   created_at!: Date;

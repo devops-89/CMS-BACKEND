@@ -478,10 +478,15 @@ async getContestOverview(id: string, userId?: string) {
   async bulkUpdateEntriesStatus(
     contestId: string,
     entryIds: string[],
-    status: Entry["status"]
+    status: Entry["status"],
+    reason?: string
   ) {
     const contest = await this.repo.findById(contestId);
     if (!contest) throw new NotFoundError("Contest not found");
+
+    if (status === "rejected" && (!reason || reason.trim() === "")) {
+      throw new UnprocessableEntityError("Reject reason is required");
+    }
 
     const entries = await this.entryRepo.findByIds(entryIds);
 
@@ -495,13 +500,39 @@ async getContestOverview(id: string, userId?: string) {
       if (entry.contest_id !== contestId) {
         throw new BadRequestError(`Entry ${entry.id} does not belong to contest ${contestId}`);
       }
-      if (entry.status !== "pending") {
+      if ((status === "approved" || status === "rejected") && entry.status !== "pending") {
         throw new BadRequestError(`Entry ${entry.id} is not in pending status`);
       }
     }
 
-    for (const entryId of entryIds) {
-      await this.entryRepo.updateStatus(entryId, status);
+    const now = new Date();
+    for (const entry of entries) {
+      entry.status = status;
+      if (status === "rejected") {
+        entry.rejectReason = reason || null;
+        entry.rejectedAt = now;
+      } else if (status === "semifinal") {
+        entry.semiFinalAt = now;
+        if (entry.participant) {
+          entry.participant.semiFinalAt = now;
+          await this.participantRepo.save(entry.participant);
+        }
+      } else if (status === "final") {
+        entry.finalAt = now;
+        if (entry.participant) {
+          entry.participant.finalAt = now;
+          await this.participantRepo.save(entry.participant);
+        }
+      } else if (status === "winner") {
+        entry.winnerAt = now;
+        if (entry.participant) {
+          entry.participant.winnerAt = now;
+          await this.participantRepo.save(entry.participant);
+        }
+      } else if (status === "evaluated") {
+        entry.evaluatedAt = now;
+      }
+      await this.entryRepo.save(entry);
     }
 
     return await this.entryRepo.findByIds(entryIds);

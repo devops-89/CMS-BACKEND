@@ -99,6 +99,17 @@ createdBy?: User;
 @Column({ type: "uuid", nullable: true })
 created_by?: string;
 
+@ManyToOne(() => User, {
+  nullable: true,
+  onDelete: "SET NULL",
+  eager: false,
+})
+@JoinColumn({ name: "winner_id" })
+winner?: User;
+
+@Column({ type: "uuid", nullable: true })
+winner_id?: string;
+
   @CreateDateColumn()
   created_at!: Date;
 

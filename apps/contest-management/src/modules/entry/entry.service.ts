@@ -188,7 +188,7 @@ export class EntryService {
     // Check if participant already has an entry in this contest
     const existingEntries = await this.repo.findByParticipant(contest_id, participant_id);
     if (existingEntries.length > 0) {
-      throw new ConflictError("You already has an entry in this contest");
+      throw new ConflictError("You already have an entry in this contest");
     }
 
     //  Step 1: create submission

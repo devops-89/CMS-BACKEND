@@ -50,6 +50,24 @@ export class Participant {
   @OneToMany(() => Entry, (e) => e.participant)
   entries!: Entry[];
 
+  @Column({
+  type: "timestamp",
+  nullable: true,
+})
+semiFinalAt!: Date | null;
+
+@Column({
+  type: "timestamp",
+  nullable: true,
+})
+finalAt!: Date | null;
+
+@Column({
+  type: "timestamp",
+  nullable: true,
+})
+winnerAt!: Date | null;
+
   @CreateDateColumn()
   joined_at!: Date;
 }

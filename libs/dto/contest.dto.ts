@@ -72,6 +72,7 @@ export type ContestIdParamDto = z.infer<typeof contestIdParamSchema>;
 export const bulkUpdateEntriesStatusSchema = z.object({
   entryIds: z.array(z.string().uuid("Invalid entry ID")).min(1, "At least one entry ID is required"),
   status: z.enum(["pending", "approved", "rejected", "draft", "evaluated", "semifinal", "final", "winner"]),
+  reason: z.string().optional(),
 });
 
 export type BulkUpdateEntriesStatusDto = z.infer<typeof bulkUpdateEntriesStatusSchema>;
