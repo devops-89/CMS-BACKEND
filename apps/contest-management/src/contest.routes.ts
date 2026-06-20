@@ -19,8 +19,9 @@ router.put("/judges/my/entries/:entryId/evaluation", authenticate, authorize(Use
 
 router.use("/", contestRoutes);
 router.use("/:contestId/entries",authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE,UserRole.PARTICIPANT,UserRole.PUBLIC), entryRoutes);
-router.use("/:contestId/participants",authenticate, authorize(UserRole.ADMIN), participantRoutes);
 router.use("/:contestId/votes",authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE,UserRole.PUBLIC), voteRoutes);
+
+router.use("/:contestId/participants",authenticate, authorize(UserRole.ADMIN), participantRoutes);
 router.use("/:contestId/judges", authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE), judgeRoutes);
 
 export default router;

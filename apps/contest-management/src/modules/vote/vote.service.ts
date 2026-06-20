@@ -2,7 +2,7 @@
 import { VoteRepository, EntryRepository } from "@libs/repositories";
 import { NotFoundError, ConflictError, InternalServerError, ForbiddenError, BadRequestError, UnprocessableEntityError } from "@libs/utils/errors.util";
 import { AppDataSource } from "@libs/database/data-source";
-import { User, VotingPeriod, VotingType } from "@libs/entities";
+import { Contest, Entry, Participant, User, VotingPeriod, VotingType } from "@libs/entities";
 import * as crypto from "crypto";
 
 export class VoteService {
@@ -77,21 +77,37 @@ export class VoteService {
     const fingerprint = payload.fingerprint || crypto.randomBytes(16).toString("hex");
 
     // 3. save vote
+    // const vote = this.repo.create({
+    //   entry_id,
+    //   contest_id,
+    //   participant_id: entry.participant_id,
+    //   user_id: user.id,
+    //   voter_email: voterEmail,
+    //   comment: payload.comment,
+    //   commentedAt: now,
+    //   ip_address: payload.ip_address || null,
+    //   session_id: sessionId,
+    //   fingerprint: fingerprint,
+    //   judge_score: payload.judge_score || null,
+    // });
+
     const vote = this.repo.create({
-      entry_id,
-      contest_id,
-      participant_id: entry.participant_id,
-      user_id: user.id,
-      voter_email: voterEmail,
+  entry: { id: entry_id } as Entry,
+  contest: { id: contest_id } as Contest,
+  participant: { id: entry.participant_id } as Participant,
+  user: { id: user.id } as User,
+
+  voter_email: voterEmail,
       voter_name: user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim() || null,
-      comment: payload.comment,
-      commentedAt: now,
-      ip_address: payload.ip_address || null,
-      session_id: sessionId,
-      fingerprint: fingerprint,
-      judge_score: payload.judge_score || null,
-    });
+  comment: payload.comment,
+  commentedAt: now,
+  ip_address: payload.ip_address,
+  session_id: sessionId,
+  fingerprint,
+  judge_score: payload.judge_score ?? null,
+});
     try {
+      console.log("vote => ", vote);
       const saved = await this.repo.save(vote);
 
       // 4. recalculate and update entry score and voteCount
@@ -105,11 +121,14 @@ export class VoteService {
 
       return saved;
     } catch (error: any) {
-      if (error.message && error.message.includes('violates not-null constraint') && error.message.includes('entry_id')) {
-        throw new BadRequestError("Invalid vote: Entry ID is missing or invalid");
-      }
-      throw error;
-    }
+  console.log("ERROR:", error);
+  console.log("MESSAGE:", error.message);
+  console.log("DETAIL:", error.detail);
+  console.log("QUERY:", error.query);
+  console.log("PARAMETERS:", error.parameters);
+
+  throw error;
+}
   }
 
   async getVotes(contest_id: string, search?: string) {
