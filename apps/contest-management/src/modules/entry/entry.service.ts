@@ -399,8 +399,21 @@ export class EntryService {
     // If participant_id is provided in the body (and user is admin), we can update it
     if (body.participant_id && userRole !== UserRole.PARTICIPANT) {
       existing.participant_id = body.participant_id;
-      await this.repo.save(existing);
     }
+
+    if (body.status) {
+      existing.status = body.status;
+      if (body.status === "pending") {
+        existing.isDraft = false;
+      } else if (body.status === "draft") {
+        existing.isDraft = true;
+        if (!existing.draftedAt) {
+          existing.draftedAt = new Date();
+        }
+      }
+    }
+
+    await this.repo.save(existing);
 
     //  return updated entry
     return await this.repo.findById(id, contest_id);
