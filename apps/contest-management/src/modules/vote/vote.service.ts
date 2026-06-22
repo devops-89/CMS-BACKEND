@@ -2,7 +2,7 @@
 import { VoteRepository, EntryRepository } from "@libs/repositories";
 import { NotFoundError, ConflictError, InternalServerError, ForbiddenError, BadRequestError, UnprocessableEntityError } from "@libs/utils/errors.util";
 import { AppDataSource } from "@libs/database/data-source";
-import { Contest, Entry, Participant, User, VotingPeriod, VotingType } from "@libs/entities";
+import { User, VotingPeriod, VotingType } from "@libs/entities";
 import * as crypto from "crypto";
 
 export class VoteService {
@@ -76,58 +76,44 @@ export class VoteService {
     const sessionId = payload.session_id || crypto.randomBytes(16).toString("hex");
     const fingerprint = payload.fingerprint || crypto.randomBytes(16).toString("hex");
 
-    // 3. save vote
-    // const vote = this.repo.create({
-    //   entry_id,
-    //   contest_id,
-    //   participant_id: entry.participant_id,
-    //   user_id: user.id,
-    //   voter_email: voterEmail,
-    //   comment: payload.comment,
-    //   commentedAt: now,
-    //   ip_address: payload.ip_address || null,
-    //   session_id: sessionId,
-    //   fingerprint: fingerprint,
-    //   judge_score: payload.judge_score || null,
-    // });
+    // 3. save vote using direct insert to ensure entry_id is stored correctly
+    const voteId = crypto.randomUUID();
+    await AppDataSource.createQueryBuilder()
+      .insert()
+      .into("votes")
+      .values({
+        id: voteId,
+        entry_id,
+        contest_id,
+        participant_id: entry.participant_id,
+        user_id: user.id,
+        voter_email: voterEmail,
+        voter_name: user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim() || null,
+        comment: payload.comment,
+        commentedAt: now,
+        ip_address: payload.ip_address || null,
+        session_id: sessionId,
+        fingerprint,
+        judge_score: payload.judge_score ?? null,
+      })
+      .execute();
 
-    const vote = this.repo.create({
-  entry: { id: entry_id } as Entry,
-  contest: { id: contest_id } as Contest,
-  participant: { id: entry.participant_id } as Participant,
-  user: { id: user.id } as User,
-
-  voter_email: voterEmail,
-      voter_name: user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim() || null,
-  comment: payload.comment,
-  commentedAt: now,
-  ip_address: payload.ip_address,
-  session_id: sessionId,
-  fingerprint,
-  judge_score: payload.judge_score ?? null,
-});
     try {
-      console.log("vote => ", vote);
-      const saved = await this.repo.save(vote);
-
       // 4. recalculate and update entry score and voteCount
       const scoreData = await this.repo.getScoreForEntry(entry_id);
-      const avgJudge = parseFloat(scoreData.avg_judge) || 0;
       const totalVotes = parseInt(scoreData.total_votes, 10) || 0;
 
       entry.voteCount = totalVotes;
       await this.entryRepo.save(entry);
 
-      return saved;
+      // Return the saved vote
+      return { id: voteId, entry_id, contest_id, participant_id: entry.participant_id, user_id: user.id, voter_email: voterEmail, comment: payload.comment, created_at: now };
     } catch (error: any) {
-  console.log("ERROR:", error);
-  console.log("MESSAGE:", error.message);
-  console.log("DETAIL:", error.detail);
-  console.log("QUERY:", error.query);
-  console.log("PARAMETERS:", error.parameters);
-
-  throw error;
-}
+      console.log("ERROR:", error);
+      console.log("MESSAGE:", error.message);
+      console.log("DETAIL:", error.detail);
+      throw error;
+    }
   }
 
   async getVotes(contest_id: string, search?: string) {
