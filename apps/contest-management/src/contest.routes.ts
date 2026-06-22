@@ -4,6 +4,7 @@ import participantRoutes from "./modules/participant/participant.routes";
 import entryRoutes from "./modules/entry/entry.routes";
 import voteRoutes from "./modules/vote/vote.routes";
 import judgeRoutes  from "./modules/judge/judge.routes";
+import emailTemplateRoutes from "./modules/email-template/email-template.routes";
 import { ContestJudgeController } from "./modules/judge/judge.controller";
 import { authenticate } from "@libs/middlewares/auth.middleware";
 import { authorize } from "@libs/middlewares/role.middleware";
@@ -23,5 +24,6 @@ router.use("/:contestId/votes",authenticate, authorize(UserRole.ADMIN,UserRole.J
 
 router.use("/:contestId/participants",authenticate, authorize(UserRole.ADMIN), participantRoutes);
 router.use("/:contestId/judges", authenticate, authorize(UserRole.ADMIN,UserRole.JUDGE), judgeRoutes);
+router.use("/:contestId/email-templates", authenticate, authorize(UserRole.ADMIN), emailTemplateRoutes);
 
 export default router;

@@ -20,6 +20,7 @@ import {
   JudgeEvaluationHistory,
   JudgeEvaluation,
   Country,
+  EmailTemplate,
 } from "../entities";
 import dotenv from "dotenv";
 
@@ -60,6 +61,7 @@ export const AppDataSource = new DataSource({
     JudgeEvaluation,
     JudgeEvaluationHistory,
     Country,
+    EmailTemplate
   ],
 
   migrations: ["libs/database/migrations/*.ts"],
