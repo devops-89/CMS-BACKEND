@@ -8,6 +8,7 @@ import { NotFoundError, InternalServerError, BadRequestError } from "@libs/utils
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import { S3Service } from "@libs/s3";
+import { NotificationService } from "@libs/notifications/notification.service";
 
 export class ParticipantService {
   private repo = new ParticipantRepository();
@@ -16,6 +17,7 @@ export class ParticipantService {
   private contestRepo = new ContestRepository();
   private userRepo = new UserRepository();
   private participantProfileRepo = new ParticipantProfileRepository();
+  private notificationService = new NotificationService();
 
 
   // async addParticipant(contest_id: string, formData: Record<string, any>) {
@@ -134,7 +136,7 @@ export class ParticipantService {
 
   await this.ensureParticipantNotExists(contest_id, user.id);
 
-  return this.repo.save(
+  const savedParticipant = await this.repo.save(
     this.repo.create({
       contest_id,
       submission_id: submission.id,
@@ -142,6 +144,30 @@ export class ParticipantService {
       status: "approved",
     }),
   );
+
+  // Send registration_successful email notification
+  const participantName = participant.fullName
+    || `${participant.firstName || ""} ${participant.lastName || ""}`.trim()
+    || "Participant";
+  const participantEmail = participant.email || user.email;
+
+  if (participantEmail) {
+    await this.notificationService.sendTemplateNotification(
+      participantEmail,
+      contest_id,
+      "participant" as any,
+      "registration_successful" as any,
+      {
+        participant_name: participantName,
+        contest_name: contest.name || "",
+        end_date: contest.end_date
+          ? new Date(contest.end_date).toLocaleDateString()
+          : "",
+      }
+    );
+  }
+
+  return savedParticipant;
 }
 
   async getParticipantById(id: string, contest_id: string) {

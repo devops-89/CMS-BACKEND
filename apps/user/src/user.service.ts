@@ -367,6 +367,26 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
       }
     }
 
+    // Send registration_successful email notification
+    if (contestId && updatedUser.email) {
+      const contestName = contests[0]?.name || "";
+      const participantName = updatedUser.fullName || updatedUser.firstName || "Participant";
+
+      await this.notificationService.sendTemplateNotification(
+        updatedUser.email,
+        contestId,
+        "participant" as any,
+        "registration_successful" as any,
+        {
+          participant_name: participantName,
+          contest_name: contestName,
+          end_date: contests[0]?.end_date
+            ? new Date(contests[0].end_date).toLocaleDateString()
+            : "",
+        }
+      );
+    }
+
     return {
       accessToken,
       refreshToken,

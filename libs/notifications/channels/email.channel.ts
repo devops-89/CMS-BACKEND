@@ -15,4 +15,13 @@ export class EmailChannel{
         });
 
      }
+
+     async sendHtml(to: string, subject: string, html: string) {
+        await resend.emails.send({
+            from: process.env.MAIL_FROM || "onboarding@resend.dev",
+            to: [to],
+            subject,
+            html,
+        });
+     }
 }
