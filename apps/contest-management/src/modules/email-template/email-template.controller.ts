@@ -25,14 +25,15 @@ export class EmailTemplateController {
 
   getAll = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const { page, limit } = req.query as Record<string, string>;
+      const { page, limit, audience } = req.query as Record<string, string>;
       const parsedPage = page ? parseInt(page, 10) : 1;
       const parsedLimit = limit ? parseInt(limit, 10) : 10;
 
       const data = await service.getEmailTemplatesByContest(
         req.params.contestId,
         parsedPage,
-        parsedLimit
+        parsedLimit,
+        audience || undefined
       );
       return res
         .status(200)

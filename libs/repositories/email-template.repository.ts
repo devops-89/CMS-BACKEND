@@ -12,9 +12,14 @@ export class EmailTemplateRepository {
     return this.repo.save(template);
   }
 
-  async findByContestId(contestId: string, page: number = 1, limit: number = 10) {
+  async findByContestId(contestId: string, page: number = 1, limit: number = 10, audience?: string) {
+    const where: any = { contest_id: contestId };
+    if (audience) {
+      where.audience = audience;
+    }
+
     const [docs, totalDocs] = await this.repo.findAndCount({
-      where: { contest_id: contestId },
+      where,
       order: { created_at: "DESC" },
       skip: (page - 1) * limit,
       take: limit,

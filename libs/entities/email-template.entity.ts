@@ -28,11 +28,6 @@ export enum TEMPLATE_EVENT_TYPE {
 }
 
 @Entity("email_templates")
-@Unique("UQ_contest_audience_event", [
-  "contest_id",
-  "audience",
-  "event_type",
-])
 export class EmailTemplate {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

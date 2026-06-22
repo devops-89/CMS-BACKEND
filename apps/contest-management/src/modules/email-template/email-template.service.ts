@@ -52,11 +52,11 @@ export class EmailTemplateService {
     return await this.repo.save(template);
   }
 
-  async getEmailTemplatesByContest(contestId: string, page: number = 1, limit: number = 10) {
+  async getEmailTemplatesByContest(contestId: string, page: number = 1, limit: number = 10, audience?: string) {
     const contest = await this.contestRepo.findById(contestId);
     if (!contest) throw new NotFoundError("Contest not found");
 
-    return await this.repo.findByContestId(contestId, page, limit);
+    return await this.repo.findByContestId(contestId, page, limit, audience);
   }
 
   async getEmailTemplateById(templateId: string) {
