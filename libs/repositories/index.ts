@@ -15,3 +15,4 @@ export * from "./judge-assigned-voting-period.repository";
 export * from "./judge-evaluation.repository";
 export * from "./judge-evaluation-history.repository";
 export * from "./country.repository";
+export * from "./email-template.repository";
