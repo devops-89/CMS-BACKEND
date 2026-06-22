@@ -9,6 +9,7 @@ import {
 import { NotFoundError, InternalServerError, BadRequestError, ForbiddenError, ConflictError } from "@libs/utils/errors.util";
 import { S3Service } from "@libs/s3";
 import { UserRole } from "@libs/entities";
+import { NotificationService } from "@libs/notifications/notification.service";
 
 export class EntryService {
   private repo = new EntryRepository();
@@ -16,6 +17,7 @@ export class EntryService {
   private submissionRepo = new FormSubmissionRepository();
   private votingPeriodRepo = new VotingPeriodRepository();
   private participantRepo = new ParticipantRepository();
+  private notificationService = new NotificationService();
 
   private async processFileUploads(
     contest_id: string,
@@ -212,7 +214,21 @@ export class EntryService {
     });
 
     try {
-      return await this.repo.save(entry);
+      const savedEntry = await this.repo.save(entry);
+
+      if (!isDraft) {
+        this.sendEntrySubmittedNotification(
+          participant_id,
+          contest_id,
+          contest.name,
+          savedEntry.id,
+          processedData
+        ).catch((err) => {
+          console.error("Failed to send entry_submitted notification:", err);
+        });
+      }
+
+      return savedEntry;
     } catch {
       throw new InternalServerError("Failed to create entry");
     }
@@ -348,7 +364,22 @@ export class EntryService {
     const existing = await this.repo.findById(id, contest_id);
     if (!existing) throw new NotFoundError("Entry not found");
 
+    const wasDraft = existing.isDraft;
+
     await this.repo.updateStatus(id, status);
+
+    if (wasDraft && status === "pending") {
+      this.sendEntrySubmittedNotification(
+        existing.participant_id,
+        contest_id,
+        existing.contest?.name,
+        existing.id,
+        existing.submission?.data
+      ).catch((err) => {
+        console.error("Failed to send entry_submitted notification:", err);
+      });
+    }
+
     return await this.repo.findById(id, contest_id);
   }
 
@@ -401,6 +432,8 @@ export class EntryService {
       existing.participant_id = body.participant_id;
     }
 
+    const wasDraft = existing.isDraft;
+
     if (body.status) {
       existing.status = body.status;
       if (body.status === "pending") {
@@ -415,6 +448,18 @@ export class EntryService {
 
     await this.repo.save(existing);
 
+    if (wasDraft && !existing.isDraft) {
+      this.sendEntrySubmittedNotification(
+        existing.participant_id,
+        contest_id,
+        existing.contest?.name,
+        existing.id,
+        processedData || existing.submission?.data
+      ).catch((err) => {
+        console.error("Failed to send entry_submitted notification:", err);
+      });
+    }
+
     //  return updated entry
     return await this.repo.findById(id, contest_id);
   }
@@ -428,5 +473,47 @@ export class EntryService {
       throw new InternalServerError("Delete failed");
 
     return { message: "Entry deleted successfully" };
+  }
+
+  private async sendEntrySubmittedNotification(
+    participant_id: string,
+    contest_id: string,
+    contestName: string,
+    entryId: string,
+    submissionData?: any
+  ) {
+    try {
+      const participant = await this.participantRepo.findOne({
+        where: { id: participant_id },
+        relations: ["user"],
+      });
+
+      const userObj = participant?.user;
+      if (userObj && userObj.email) {
+        const participantName = userObj.fullName || userObj.firstName || "Participant";
+
+        const entryTitle = 
+          submissionData?.entry_title || 
+          submissionData?.entryTitle || 
+          submissionData?.title || 
+          submissionData?.name || 
+          "My Entry";
+
+        await this.notificationService.sendTemplateNotification(
+          userObj.email,
+          contest_id,
+          "participant" as any,
+          "entry_submitted" as any,
+          {
+            participant_name: participantName,
+            contest_name: contestName || "",
+            entry_title: entryTitle,
+            entry_id: entryId,
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error sending entry_submitted notification:", error);
+    }
   }
 }
