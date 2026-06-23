@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { ContestService } from "./contest.service";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
-import { UserRole } from "@libs/entities";
+import { UserRole, TEMPLATE_AUDIENCE, TEMPLATE_EVENT_TYPE } from "@libs/entities";
+import { NotificationService } from "@libs/notifications/notification.service";
 import jwt from "jsonwebtoken";
 
 const service = new ContestService();
+const notificationService = new NotificationService();
 
 type ContestParams = { id: string };
 
@@ -140,8 +142,36 @@ export class ContestController {
 
   bulkUpdateEntriesStatus = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const { entryIds, status,reason } = req.body;
-      const data = await service.bulkUpdateEntriesStatus(req.params.id, entryIds, status,reason);
+      const { entryIds, status, reason } = req.body;
+      const data = await service.bulkUpdateEntriesStatus(req.params.id, entryIds, status, reason);
+
+      if (status === "semifinal" || status === "winner") {
+        const eventType = status === "semifinal"
+          ? TEMPLATE_EVENT_TYPE.SELECTED_AS_SEMI_FINALIST
+          : TEMPLATE_EVENT_TYPE.ANNOUNCED_AS_WINNER;
+
+        for (const entry of data) {
+          const participantUser = entry.participant?.user;
+          if (participantUser?.email) {
+            const participantName = participantUser.fullName || `${participantUser.firstName || ""} ${participantUser.lastName || ""}`.trim() || "Participant";
+            const contestName = entry.contest?.name || "";
+
+            notificationService.sendTemplateNotification(
+              participantUser.email,
+              req.params.id,
+              TEMPLATE_AUDIENCE.PARTICIPANT,
+              eventType,
+              {
+                participant_name: participantName,
+                contest_name: contestName,
+              }
+            ).catch((err) => {
+              console.error(`Failed to send email notification to ${participantUser.email}:`, err);
+            });
+          }
+        }
+      }
+
       return res.status(200).json({ message: "Entries updated successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });

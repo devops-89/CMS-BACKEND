@@ -69,6 +69,13 @@ export class EntryRepository {
     });
   }
 
+  findByIdsWithUserAndContest(ids: string[]) {
+    return this.repo.find({
+      where: { id: In(ids) },
+      relations: ["participant", "participant.user", "contest", "submission"],
+    });
+  }
+
 
   updateStatus(id: string, status: Entry["status"]) {
     return this.repo.update(id, { status });

@@ -535,6 +535,6 @@ async getContestOverview(id: string, userId?: string) {
       await this.entryRepo.save(entry);
     }
 
-    return await this.entryRepo.findByIds(entryIds);
+    return await this.entryRepo.findByIdsWithUserAndContest(entryIds);
   }
 }
