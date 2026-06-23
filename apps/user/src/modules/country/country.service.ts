@@ -5,19 +5,50 @@ import { ConflictError, NotFoundError } from "@libs/utils/errors.util";
 export class CountryService {
   private repo = new CountryRepository();
 
-  async createCountry(payload: createCountryDto) {
-    const existingName = await this.repo.findByName(payload.name);
-    if (existingName) {
-      throw new ConflictError("Country name already exists");
+ async createCountry(payload: createCountryDto) {
+  const existingName = await this.repo.findByName(
+    payload.name,
+    true,
+  );
+
+  if (existingName) {
+    if (existingName.deletedAt) {
+      await this.repo.restore(existingName.id);
+
+      existingName.code = payload.code;
+      existingName.phoneCode = payload.phoneCode;
+      existingName.currencyCode = payload.currencyCode;
+      existingName.isActive = true;
+      existingName.deletedAt = undefined;
+
+      return this.repo.save(existingName);
     }
 
-    const existingCode = await this.repo.findByCode(payload.code);
-    if (existingCode) {
-      throw new ConflictError("Country code already exists");
-    }
-
-    return this.repo.createCountry(payload);
+    throw new ConflictError("Country name already exists");
   }
+
+  const existingCode = await this.repo.findByCode(
+    payload.code,
+    true,
+  );
+
+  if (existingCode) {
+    if (existingCode.deletedAt) {
+      await this.repo.restore(existingCode.id);
+
+      existingCode.name = payload.name;
+      existingCode.phoneCode = payload.phoneCode;
+      existingCode.currencyCode = payload.currencyCode;
+      existingCode.isActive = true;
+
+      return this.repo.save(existingCode);
+    }
+
+    throw new ConflictError("Country code already exists");
+  }
+
+  return this.repo.createCountry(payload);
+}
 
   async getAllCountries() {
     return this.repo.findAll();

@@ -22,17 +22,19 @@ export class CountryRepository {
     return this.repo.findOne({ where: { id } });
   }
 
-  async findByName(name: string) {
-    return this.repo.createQueryBuilder("country")
-      .where("country.name ILIKE :name", { name })
-      .getOne();
-  }
+  async findByName(name: string, withDeleted = false) {
+  return this.repo.findOne({
+    where: { name },
+    withDeleted,
+  });
+}
 
-  async findByCode(code: string) {
-    return this.repo.createQueryBuilder("country")
-      .where("country.code ILIKE :code", { code })
-      .getOne();
-  }
+async findByCode(code: string, withDeleted = false) {
+  return this.repo.findOne({
+    where: { code },
+    withDeleted,
+  });
+}
 
   async updateCountry(id: string, data: Partial<Country>) {
     await this.repo.update(id, data);
@@ -43,4 +45,13 @@ export class CountryRepository {
     const result = await this.repo.softDelete(id);
     return result.affected !== 0;
   }
+
+  async restore(id: string) {
+  return this.repo.restore(id);
+}
+
+async save(country: Country) {
+  return this.repo.save(country);
+}
+
 }
