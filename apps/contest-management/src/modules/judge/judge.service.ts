@@ -76,6 +76,8 @@ export class ContestJudgeService {
     return {
       contestJudge,
       assignments: entryAssignments,
+      judge: judgeProfile.user,
+      contest,
     };
   }
 

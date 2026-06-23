@@ -1,8 +1,11 @@
 import { Request, Response } from "express";
 import { ContestJudgeService } from "./judge.service";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
+import { NotificationService } from "@libs/notifications/notification.service";
+import { TEMPLATE_AUDIENCE, TEMPLATE_EVENT_TYPE } from "@libs/entities";
 
 const service = new ContestJudgeService();
+const notificationService = new NotificationService();
 
 type ContestParams = { contestId: string };
 type JudgeParams = { contestId: string; jid: string };
@@ -11,8 +14,28 @@ type RemoveJudgeParams = { contestId: string; judgeId: string };
 export class ContestJudgeController {
   assign = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const data = await service.assignJudge(req.params.contestId, req.body);
-      return res.status(201).json({ message: "Judge assigned to contest", data });
+      const { contestJudge, assignments, judge, contest } = await service.assignJudge(req.params.contestId, req.body);
+
+      if (judge?.email) {
+        const judgeName = judge.fullName || `${judge.firstName || ""} ${judge.lastName || ""}`.trim() || "Judge";
+        await notificationService.sendTemplateNotification(
+          judge.email,
+          req.params.contestId,
+          TEMPLATE_AUDIENCE.JUDGE,
+          TEMPLATE_EVENT_TYPE.ASSIGNED_AS_JUDGE,
+          {
+            judge_name: judgeName,
+            contest_name: contest?.name || "",
+          }
+        ).catch((err) => {
+          console.error("Failed to send template notification to judge:", err);
+        });
+      }
+
+      return res.status(201).json({
+        message: "Judge assigned to contest",
+        data: { contestJudge, assignments },
+      });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
     }
