@@ -2,11 +2,16 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, ManyToOne, OneToOne,
   OneToMany, JoinColumn, Index,
+  Unique,
 } from "typeorm";
 
 import { Entry, FormSubmission, Contest, User, Vote } from "@libs/entities";
 
 @Entity("participants")
+@Unique("UQ_participant_contest_user", [
+  "contest_id",
+  "user_id",
+])
 export class Participant {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

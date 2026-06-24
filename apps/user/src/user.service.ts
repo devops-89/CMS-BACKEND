@@ -183,51 +183,81 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
 
   const existingUser = await this.userRepo.findByEmail(email);
 
+  let user;
   if (existingUser) {
-    throw new ConflictError(
-      "User already exists with this emailId!",
-    );
+    if (existingUser.role !== UserRole.PARTICIPANT) {
+      throw new ConflictError("User already exists with this emailId!");
+    }
+
+    const existingParticipant = await this.participantEntityRepo.findOne({
+      where: {
+        contest_id: contest.id,
+        user_id: existingUser.id,
+      },
+    });
+    if (existingParticipant) {
+      throw new ConflictError("You are already registered for this contest");
+    }
+
+    user = existingUser;
+    user.firstName = firstName || user.firstName;
+    user.lastName = lastName || user.lastName;
+    user.fullName = fullName || user.fullName;
+    user.phone = phone || user.phone;
+    if (avatarUrl) {
+      user.avatarUrl = avatarUrl;
+    }
+    user.countryId = countryId || user.countryId;
+    user.form_template_id = template.id;
+    await this.userRepo.save(user);
+
+    const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
+    const existingProfile = await this.participantRepo.findByUserId(user.id);
+    if (!existingProfile) {
+      await this.participantRepo.createProfile({
+        user,
+        dateOfBirth: dob as Date,
+      });
+    } else {
+      if (dob) {
+        existingProfile.dateOfBirth = dob;
+        await this.participantRepo.save(existingProfile);
+      }
+    }
+  } else {
+    // =====================================================
+    // Hash Password
+    // =====================================================
+    const hashedPassword = await bcrypt.hash(password, 12);
+    fullName = fullName || `${firstName} ${lastName}`.trim();
+
+    // =====================================================
+    // Create User
+    // =====================================================
+    user = await this.userRepo.createUser({
+      email,
+      password: hashedPassword,
+      role: UserRole.PARTICIPANT,
+      status: UserStatus.PENDING,
+      form_template_id: template.id,
+      isSelfRegistered: true,
+      firstName,
+      lastName,
+      fullName,
+      phone,
+      countryId,
+      avatarUrl: avatarUrl || undefined,
+    });
+
+    // =====================================================
+    // Create Participant Profile
+    // =====================================================
+    const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
+    await this.participantRepo.createProfile({
+      user,
+      dateOfBirth: dob as Date,
+    });
   }
-
-  // =====================================================
-  // Hash Password
-  // =====================================================
-
-  const hashedPassword = await bcrypt.hash(password, 12);
-
-   fullName = fullName || `${firstName} ${lastName}`.trim();
-
-  // =====================================================
-  // Create User
-  // =====================================================
-
-  const user = await this.userRepo.createUser({
-    email,
-    password: hashedPassword,
-    role: UserRole.PARTICIPANT,
-    status: UserStatus.PENDING,
-    form_template_id: template.id,
-    isSelfRegistered: true,
-    firstName,
-    lastName,
-    fullName,
-    phone,
-    countryId,
-    avatarUrl: avatarUrl || undefined,
-  });
-
-  // =====================================================
-  // Create Participant Profile
-  // =====================================================
-
-  const dob = dateOfBirthStr
-    ? new Date(dateOfBirthStr)
-    : null;
-
-  await this.participantRepo.createProfile({
-    user,
-    dateOfBirth: dob as Date,
-  });
 
   // =====================================================
   // Create Form Submission
@@ -301,11 +331,6 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
     const user = await this.userRepo.findByEmail(email);
     if (!user) {
       throw new NotFoundError("User not found");
-    }
-
-    // 2. Check if user is already active
-    if (user.status === UserStatus.ACTIVE) {
-      throw new BadRequestError("User is already active");
     }
 
     // 3. Fetch the latest OTP for this user

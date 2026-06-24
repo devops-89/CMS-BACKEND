@@ -111,16 +111,33 @@ export class ParticipantService {
     answers = { ...formData };
   }
 
+  const fields = this.flattenFields(template.schema?.fields || []);
+  const participant = this.extractParticipantData(fields, answers);
+
+  if (participant.email) {
+    const existingUser = await this.userRepo.findByEmail(participant.email);
+    if (existingUser) {
+      if (existingUser.role !== UserRole.PARTICIPANT) {
+        throw new BadRequestError("User already exists with a different role!");
+      }
+      const existingParticipant = await this.repo.findOne({
+        where: {
+          contest_id: contest_id,
+          user_id: existingUser.id,
+        },
+      });
+      if (existingParticipant) {
+        throw new BadRequestError("Participant already joined this contest");
+      }
+    }
+  }
+
   // Process and upload files if any file_upload fields exist
   answers = await this.processFileUploads(contest_id, template, answers, files);
 
   const submission = await this.submissionRepo.save(
     this.submissionRepo.create(template, answers),
   );
-
-  const fields = this.flattenFields(template.schema?.fields || []);
-
-  const participant = this.extractParticipantData(fields, answers);
 
   const user = await this.createOrUpdateParticipantUser(
     participant,
@@ -133,8 +150,6 @@ export class ParticipantService {
     submission.id,
     participant,
   );
-
-  await this.ensureParticipantNotExists(contest_id, user.id);
 
   const savedParticipant = await this.repo.save(
     this.repo.create({
