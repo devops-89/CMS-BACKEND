@@ -50,10 +50,10 @@ votes!: Vote[];
 
   @Column({
     type: "enum",
-    enum: ["pending", "approved", "rejected", "semi-finalist", "finalist", "winner"],
+    enum: ["pending", "approved", "banned", "rejected", "semi-finalist", "finalist", "winner"],
     default: "pending",
   })
-  status!: "pending" | "approved" | "rejected" | "semi-finalist" | "finalist" | "winner";
+  status!: "pending" | "approved" | "banned" | "rejected" | "semi-finalist" | "finalist" | "winner";
 
   @OneToMany(() => Entry, (e) => e.participant)
   entries!: Entry[];

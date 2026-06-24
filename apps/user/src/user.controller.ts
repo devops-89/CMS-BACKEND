@@ -4,6 +4,7 @@ import {
   UserRepository,
   JudgeProfileRepository,
   AdminProfileRepository,
+  ParticipantRepository,
 } from "@libs/repositories";
 
 import {
@@ -29,6 +30,7 @@ export class UserController {
   private adminRepo = new AdminProfileRepository();
   private judgeRepo = new JudgeProfileRepository();
   private participantRepo = new ParticipantProfileRepository();
+  private participantEntityRepo = new ParticipantRepository();
   private userService = new UserService();
   private s3Service = new S3Service();
 
@@ -56,33 +58,66 @@ export class UserController {
 
 // Update the User Status
   async updateUserStatus(
-  req: AuthRequest<updateUserStatusDto>,
-  res: Response
-) {
-  try {
-    const { id, status } = req.body;
+    req: AuthRequest<updateUserStatusDto>,
+    res: Response
+  ) {
+    try {
+      const { id, status, contestId } = req.body;
 
-    const existing = await this.userRepo.getUserById(id);
-    if (!existing) {
-      return res.status(404).json({
-        message: "User Not Found!",
+      const existing = await this.userRepo.getUserById(id);
+      if (!existing) {
+        return res.status(404).json({
+          message: "User Not Found!",
+        });
+      }
+
+      if (existing.role === "participant") {
+        if (!contestId) {
+          return res.status(400).json({
+            message: "Contest ID is required for participant users!",
+          });
+        }
+
+        const existingParticipant = await this.participantEntityRepo.findOne({
+          where: {
+            contest_id: contestId,
+            user_id: id,
+          },
+        });
+
+        if (!existingParticipant) {
+          return res.status(404).json({
+            message: "Participant not found for this contest!",
+          });
+        }
+
+        await this.participantEntityRepo.updateStatus(existingParticipant.id, status as any);
+
+        return res.status(200).json({
+          message: "Participant status updated successfully",
+          data: {
+            id: existingParticipant.id,
+            userId: id,
+            contestId,
+            status,
+          },
+        });
+      }
+
+      const updated = await this.userRepo.updateUserStatus(id, status as any);
+
+      return res.status(200).json({
+        message: "User status updated successfully",
+        data: updated,
+      });
+
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Failed to update status!",
+        error: error.message,
       });
     }
-
-    const updated = await this.userRepo.updateUserStatus(id, status);
-
-    return res.status(200).json({
-      message: "User status updated successfully",
-      data: updated,
-    });
-
-  } catch (error: any) {
-    return res.status(500).json({
-      message: "Failed to update user status!",
-      error: error.message,
-    });
   }
-}
 
   // get all users with role filter
  async getAllUsers(

@@ -19,7 +19,8 @@ export const getUsersQuerySchema=z.object({
 
 export const updateUserStatusSchema = z.object({
   id: z.string(),
-  status: z.nativeEnum(UserStatus)
+  status: z.string(),
+  contestId: z.string().optional()
 });
 
 export const deleteUserByIdSchema=z.object({
