@@ -11,7 +11,7 @@ router.get("/", controller.getAll.bind(controller));
 router.post("/", upload.any(), controller.add.bind(controller));
 router.get("/:pid", controller.getOne.bind(controller));
 router.patch("/:pid/status", controller.updateStatus.bind(controller));
-router.patch("/:pid", controller.update.bind(controller));
+router.patch("/:pid", upload.any(), controller.update.bind(controller));
 router.delete("/:pid", controller.remove.bind(controller));
 
 export default router;

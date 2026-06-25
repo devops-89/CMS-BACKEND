@@ -174,7 +174,12 @@ export class ParticipantService {
     return await this.repo.findById(id, contest_id);
   }
 
-  async updateParticipant(id: string, contest_id: string, formData: Record<string, any>) {
+  async updateParticipant(
+    id: string,
+    contest_id: string,
+    formData: Record<string, any>,
+    files: any[] = []
+  ) {
 
     console.log("id", id);
     console.log("contest_id", contest_id);
@@ -196,7 +201,94 @@ export class ParticipantService {
       throw new BadRequestError("Contest registration has ended");
     }
 
-    await this.submissionRepo.update(existing.submission_id, formData);
+    const template = await this.getTemplate(contest.user_level_template_id!);
+
+    // Extract the actual field answers. If nested under a 'data' key, use it.
+    let answers = formData.data && typeof formData.data === "object" && !Array.isArray(formData.data)
+      ? formData.data
+      : formData;
+
+    if (typeof formData.data === "string") {
+      try {
+        answers = JSON.parse(formData.data);
+      } catch {
+        answers = { ...formData };
+      }
+    } else if (!formData.data) {
+      answers = { ...formData };
+    }
+
+    const fields = this.flattenFields(template.schema?.fields || []);
+    const participant = this.extractParticipantData(fields, answers);
+
+    // Process and upload files if any file_upload fields exist
+    answers = await this.processFileUploads(contest_id, template, answers, files);
+
+    // Update the submission
+    await this.submissionRepo.update(existing.submission_id, answers);
+
+    // Update associated user and participant profile
+    let user: any = null;
+    if (existing.user_id) {
+      user = await this.userRepo.getUserById(existing.user_id);
+    }
+
+    if (user) {
+      user.participant_profile_data = {
+        ...(user.participant_profile_data || {}),
+        ...answers,
+      };
+      if (participant.firstName) {
+        user.firstName = participant.firstName;
+      }
+      if (participant.lastName) {
+        user.lastName = participant.lastName;
+      }
+      if (participant.phone) {
+        user.phone = participant.phone;
+      }
+      if (participant.fullName) {
+        user.fullName = participant.fullName;
+      } else if (participant.firstName || participant.lastName) {
+        user.fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+      }
+      if (participant.avatarUrl) {
+        user.avatarUrl = participant.avatarUrl;
+      }
+
+      if (participant.email && participant.email !== user.email) {
+        const emailUser = await this.userRepo.findByEmail(participant.email);
+        if (emailUser && emailUser.id !== user.id) {
+          throw new BadRequestError("Email is already in use by another user!");
+        }
+        user.email = participant.email;
+      }
+
+      user.form_template_id = template.id;
+      await this.userRepo.save(user);
+
+      await this.createOrUpdateParticipantProfile(
+        user,
+        existing.submission_id,
+        participant,
+      );
+    } else {
+      const newUser = await this.createOrUpdateParticipantUser(
+        participant,
+        answers,
+        template.id,
+      );
+
+      await this.createOrUpdateParticipantProfile(
+        newUser,
+        existing.submission_id,
+        participant,
+      );
+
+      existing.user_id = newUser.id;
+      await this.repo.save(existing);
+    }
+
     return await this.repo.findById(id, contest_id);
   }
 

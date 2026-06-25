@@ -57,7 +57,8 @@ export class ParticipantController {
       const data = await service.updateParticipant(
         req.params.pid,
         req.params.contestId,
-        req.body
+        req.body,
+        req.files as any[]
       );
       return res.status(200).json({ message: "Participant updated successfully", data });
     } catch (e: any) {
