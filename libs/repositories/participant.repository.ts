@@ -40,6 +40,12 @@ export class ParticipantRepository {
   }
 
   delete(id: string) {
-    return this.repo.delete(id);
+    return this.repo.softDelete(id);
+  }
+
+  countByUser(user_id: string) {
+    return this.repo.count({
+      where: { user_id },
+    });
   }
 }

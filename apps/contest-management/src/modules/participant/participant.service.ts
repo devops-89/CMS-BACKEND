@@ -55,7 +55,7 @@ export class ParticipantService {
   //   }
   // }
 
-  async getParticipants(contest_id: string) {
+  async getAllParticipants(contest_id: string) {
     const contest = await this.contestRepo.findById(contest_id);
     const template = contest?.user_level_template_id 
       ? await this.templateRepo.findById(contest.user_level_template_id)
@@ -238,8 +238,22 @@ export class ParticipantService {
     const existing = await this.repo.findById(id, contest_id);
     if (!existing) throw new NotFoundError("Participant not found");
 
+    const userId = existing.user_id;
+    let shouldDeleteUser = false;
+
+    if (userId) {
+      const activeCount = await this.repo.countByUser(userId);
+      if (activeCount <= 1) {
+        shouldDeleteUser = true;
+      }
+    }
+
     const result = await this.repo.delete(id);
     if (result.affected === 0) throw new InternalServerError("Delete failed");
+
+    if (shouldDeleteUser && userId) {
+      await this.userRepo.softDeleteUser(userId);
+    }
 
     return { message: "Participant removed successfully" };
   }

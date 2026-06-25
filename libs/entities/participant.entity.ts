@@ -3,6 +3,7 @@ import {
   CreateDateColumn, ManyToOne, OneToOne,
   OneToMany, JoinColumn, Index,
   Unique,
+  DeleteDateColumn,
 } from "typeorm";
 
 import { Entry, FormSubmission, Contest, User, Vote } from "@libs/entities";
@@ -78,4 +79,7 @@ winnerAt!: Date | null;
 
   @CreateDateColumn()
   joined_at!: Date;
+
+  @DeleteDateColumn()
+  deleted_at?: Date;
 }

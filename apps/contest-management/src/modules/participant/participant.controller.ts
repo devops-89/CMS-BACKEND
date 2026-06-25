@@ -23,8 +23,8 @@ export class ParticipantController {
 
   getAll = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const data = await service.getParticipants(req.params.contestId);
-      return res.status(200).json({ message: "Participants fetched", data });
+      const data = await service.getAllParticipants(req.params.contestId);
+      return res.status(200).json({ message: "Participants list fetched successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 500).json({ message: e.message });
     }
@@ -33,7 +33,7 @@ export class ParticipantController {
   getOne = async (req: Request<ParticipantParams>, res: Response) => {
     try {
       const data = await service.getParticipantById(req.params.pid, req.params.contestId);
-      return res.status(200).json({ message: "Participant fetched", data });
+      return res.status(200).json({ message: "Participant details fetched successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 404).json({ message: e.message });
     }
@@ -46,7 +46,7 @@ export class ParticipantController {
         req.params.contestId,
         req.body.status
       );
-      return res.status(200).json({ message: "Status updated", data });
+      return res.status(200).json({ message: "Status updated successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
     }
@@ -59,7 +59,7 @@ export class ParticipantController {
         req.params.contestId,
         req.body
       );
-      return res.status(200).json({ message: "Participant updated", data });
+      return res.status(200).json({ message: "Participant updated successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
     }

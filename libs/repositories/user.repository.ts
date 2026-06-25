@@ -100,6 +100,11 @@ export class UserRepository {
     return true;
   }
 
+  async softDeleteUser(id: string): Promise<boolean> {
+    const result = await this.repo.softDelete(id);
+    return result.affected !== 0;
+  }
+
   async findAllByRole(role: UserRole) {
     return this.repo.find({ where: { role } });
   }
