@@ -81,89 +81,106 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
   // Extract Dynamic Fields
   // =====================================================
 
-  let firstName = "";
-  let lastName = "";
-  let fullName = "";
-  let email = "";
-  let password = "";
-  let phone = "";
-  let dateOfBirthStr = "";
-  let avatarUrl = "";
+ // =====================================================
+// Extract Dynamic Fields
+// =====================================================
 
-  for (const field of template.schema.fields) {
-    const value = processedFormData[field.id];
+let firstName = "";
+let lastName = "";
+let fullName = "";
+let email = "";
+let password = "";
+let phone = "";
+let dateOfBirthStr = "";
+let avatarUrl = "";
+let grade = "";
+let schoolName = "";
 
-    if (value === undefined || value === null) {
-      continue;
-    }
+for (const field of template.schema.fields) {
+  const value = processedFormData[field.id];
 
-    const label = field.label.trim().toLowerCase();
+  if (value === undefined || value === null || value === "") {
+    continue;
+  }
 
-    if (
-      label === "firstname" ||
-      label === "first name" ||
-      label.includes("firstname")
-    ) {
-      firstName = String(value);
-    } else if (
-      label === "lastname" ||
-      label === "last name" ||
-      label.includes("lastname")
-    ) {
-      lastName = String(value);
-    } else if (
-      label === "full name" ||
-      label === "fullname" ||
-      label === "name" ||
-      label.includes("full name") ||
-      label.includes("fullname") ||
-      label.includes("name")
-    ) {
-      fullName = String(value);
-    } else if (
-      label === "mail" ||
-      label === "email" ||
-      label.includes("mail") ||
-      label.includes("email")
-    ) {
-      email = String(value);
-    } else if (
-      label === "password" ||
-      label.includes("password")
-    ) {
+  const normalizedLabel = field.label
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+
+  switch (normalizedLabel) {
+    case "firstname":
+      firstName = String(value).trim();
+      break;
+
+    case "lastname":
+      lastName = String(value).trim();
+      break;
+
+    case "fullname":
+    case "name":
+      fullName = String(value).trim();
+      break;
+
+    case "email":
+    case "mail":
+      email = String(value).trim().toLowerCase();
+      break;
+
+    case "password":
       password = String(value);
-    } else if (
-      label === "phone" ||
-      label === "phone number" ||
-      label.includes("phone") ||
-      label.includes("mobile")
-    ) {
-      phone = String(value);
-    } else if (
-      label === "date of birth" ||
-      label === "dob" ||
-      label === "birthdate" ||
-      label.includes("birth")
-    ) {
+      break;
+
+    case "phone":
+    case "phonenumber":
+    case "mobile":
+    case "mobilenumber":
+      phone = String(value).trim();
+      break;
+
+    case "dateofbirth":
+    case "dob":
+    case "birthdate":
       dateOfBirthStr = String(value);
-    } else if (
-      label === "avatar" ||
-      label.includes("avatar")
-    ) {
+      break;
+
+    case "avatar":
+    case "profilephoto":
+    case "profileimage":
       avatarUrl = String(value);
-    }
+      break;
+
+    case "grade":
+    case "class":
+      grade = String(value).trim();
+      break;
+
+    case "schoolname":
+    case "school":
+    case "organization":
+    case "institution":
+      schoolName = String(value).trim();
+      break;
+  }
+}
+
+// Split full name if first/last name not provided
+if (fullName && (!firstName || !lastName)) {
+  const parts = fullName.split(/\s+/);
+
+  if (!firstName) {
+    firstName = parts.shift() || "";
   }
 
-  fullName = fullName.trim();
-  if (fullName && (!firstName || !lastName)) {
-    const parts = fullName.split(/\s+/);
-    if (!firstName) firstName = parts[0] || "";
-    if (!lastName) lastName = parts.slice(1).join(" ") || "";
+  if (!lastName) {
+    lastName = parts.join(" ");
   }
+}
 
-  firstName = firstName.trim();
-  lastName = lastName.trim();
-  phone = phone || "";
+firstName = firstName.trim();
+lastName = lastName.trim();
+fullName = fullName || `${firstName} ${lastName}`.trim();
+phone = phone.trim();
 
   // =====================================================
   // Validate Required Fields
@@ -210,20 +227,6 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
     user.countryId = countryId || user.countryId;
     user.form_template_id = template.id;
     await this.userRepo.save(user);
-
-    const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
-    const existingProfile = await this.participantRepo.findByUserId(user.id);
-    if (!existingProfile) {
-      await this.participantRepo.createProfile({
-        user,
-        dateOfBirth: dob as Date,
-      });
-    } else {
-      if (dob) {
-        existingProfile.dateOfBirth = dob;
-        await this.participantRepo.save(existingProfile);
-      }
-    }
   } else {
     // =====================================================
     // Hash Password
@@ -249,15 +252,8 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
       avatarUrl: avatarUrl || undefined,
     });
 
-    // =====================================================
-    // Create Participant Profile
-    // =====================================================
-    const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
-    await this.participantRepo.createProfile({
-      user,
-      dateOfBirth: dob as Date,
-    });
   }
+  const formDataWithUrls = await this.convertKeysToUrls(processedFormData);
 
   // =====================================================
   // Create Form Submission
@@ -267,9 +263,30 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
     await this.submissionRepo.save(
       this.submissionRepo.create(
         template,
-        processedFormData,
+        formDataWithUrls,
       ),
     );
+
+  // =====================================================
+  // Create / Update Participant Profile
+  // =====================================================
+  const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
+  const existingProfile = await this.participantRepo.findByUserId(user.id);
+  if (!existingProfile) {
+    await this.participantRepo.createProfile({
+      user,
+      dateOfBirth: dob as Date,
+      grade: grade || undefined,
+      schoolName: schoolName || undefined,
+      submission_id: submission.id,
+    });
+  } else {
+    existingProfile.dateOfBirth = dob || existingProfile.dateOfBirth;
+    existingProfile.grade = grade || existingProfile.grade;
+    existingProfile.schoolName = schoolName || existingProfile.schoolName;
+    existingProfile.submission_id = submission.id;
+    await this.participantRepo.save(existingProfile);
+  }
 
   // =====================================================
   // Create Participant Record
@@ -424,6 +441,31 @@ async createParticipantService(payload: createParticipantDto, files: any[] = [])
         contests,
       },
     };
+  }
+
+  private async convertKeysToUrls(formData: Record<string, any>): Promise<Record<string, any>> {
+    const s3Service = new S3Service();
+    const result = { ...formData };
+
+    for (const key of Object.keys(result)) {
+      const val = result[key];
+      if (typeof val === "string") {
+        if (val.startsWith("http://") || val.startsWith("https://") || val.includes("users/")) {
+          try {
+            const usersIdx = val.indexOf("users/");
+            const s3Key = usersIdx !== -1 ? val.substring(usersIdx) : val;
+
+            const downloadUrl = await s3Service.getDownloadUrl(s3Key);
+            result[key] = s3Key;
+            result[`${key}_downloadUrl`] = downloadUrl;
+          } catch (error) {
+            console.error(`Failed to generate download URL for key ${key}:`, error);
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   private async processFileUploads(

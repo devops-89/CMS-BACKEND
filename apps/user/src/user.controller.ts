@@ -182,6 +182,22 @@ async getUserById(req:AuthRequest<getUserByIdDto>, res:Response){
           }
         }
 
+        if (user) {
+          if (user.participant_profile_data) {
+            user.participant_profile_data = await this.appendDownloadUrlsToData(user.participant_profile_data);
+          }
+          if (user.participantProfile?.submission?.data) {
+            user.participantProfile.submission.data = await this.appendDownloadUrlsToData(user.participantProfile.submission.data);
+          }
+          if (user.participants && Array.isArray(user.participants)) {
+            for (const p of user.participants) {
+              if (p.submission?.data) {
+                p.submission.data = await this.appendDownloadUrlsToData(p.submission.data);
+              }
+            }
+          }
+        }
+
         return res.status(200).json({
             message:"User Fetched Successfully.",
             data:user
@@ -215,6 +231,22 @@ async getUserDetailsByToken(req: AuthRequest, res: Response) {
                 (user as any).avatarDownloadUrl = await this.s3Service.getDownloadUrl(user.avatarUrl);
             } catch (e) {
                 console.error("Failed to generate download url for user avatar", e);
+            }
+        }
+
+        if (user) {
+            if (user.participant_profile_data) {
+                user.participant_profile_data = await this.appendDownloadUrlsToData(user.participant_profile_data);
+            }
+            if (user.participantProfile?.submission?.data) {
+                user.participantProfile.submission.data = await this.appendDownloadUrlsToData(user.participantProfile.submission.data);
+            }
+            if (user.participants && Array.isArray(user.participants)) {
+                for (const p of user.participants) {
+                    if (p.submission?.data) {
+                        p.submission.data = await this.appendDownloadUrlsToData(p.submission.data);
+                    }
+                }
             }
         }
 
@@ -366,6 +398,28 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
         error: error.message,
       });
     }
+  }
+
+  private async appendDownloadUrlsToData(data: Record<string, any>): Promise<Record<string, any>> {
+    if (!data || typeof data !== "object") return data;
+
+    const result = { ...data };
+    for (const key of Object.keys(result)) {
+      const val = result[key];
+      if (typeof val === "string") {
+        if (val.startsWith("http://") || val.startsWith("https://") || val.includes("users/")) {
+          try {
+            const usersIdx = val.indexOf("users/");
+            const s3Key = usersIdx !== -1 ? val.substring(usersIdx) : val;
+            const downloadUrl = await this.s3Service.getDownloadUrl(s3Key);
+            result[`${key}_downloadUrl`] = downloadUrl;
+          } catch (error) {
+            console.error(`Failed to generate download URL for key ${key}:`, error);
+          }
+        }
+      }
+    }
+    return result;
   }
 
   listEntries = async (req: AuthRequest, res: Response) => {

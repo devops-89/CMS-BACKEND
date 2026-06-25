@@ -20,40 +20,6 @@ export class ParticipantService {
   private notificationService = new NotificationService();
 
 
-  // async addParticipant(contest_id: string, formData: Record<string, any>) {
-  //   // 1. verify contest exists and get its template
-  //   const contest = await this.contestRepo.findById(contest_id);
-  //   if (!contest) throw new NotFoundError("Contest not found");
-
-  //   if (!contest.user_level_template_id) {
-  //     throw new NotFoundError("User level template ID missing");
-  //   }
-
-  //   const template = await this.templateRepo.findById(contest.user_level_template_id);
-
-  //   if (!template) {
-  //     throw new NotFoundError("Form template not found");
-  //   }
-  //   // 2. get the form template linked to this contest
-
-
-  //   // 3. create form submission using the contest's template
-  //   const submission = this.submissionRepo.create(template, formData);
-  //   const savedSubmission = await this.submissionRepo.save(submission);
-
-  //   // 4. create participant linking contest + submission
-  //   const participant = this.repo.create({
-  //     contest_id,
-  //     submission_id: savedSubmission.id,
-  //   });
-  //   console.log("participant", participant);
-
-  //   try {
-  //     return await this.repo.save(participant);
-  //   } catch {
-  //     throw new InternalServerError("Failed to add participant");
-  //   }
-  // }
 
   async getAllParticipants(contest_id: string) {
     const contest = await this.contestRepo.findById(contest_id);
@@ -284,96 +250,118 @@ private extractParticipantData(
   fields: any[],
   formData: any,
 ) {
-  return {
-  firstName: this.getFieldValue(fields, formData, [
+  let firstName = this.getFieldValue(fields, formData, [
     "first name",
     "firstname",
     "first_name",
     "Firstname"
-  ]),
+  ]) || "";
 
-  lastName: this.getFieldValue(fields, formData, [
+  let lastName = this.getFieldValue(fields, formData, [
     "last name",
     "lastname",
     "last_name",
     "Lastname"
-  ]),
+  ]) || "";
 
-  fullName:
-    this.getFieldValue(fields, formData, [
-      "full name",
-      "fullname",
-      "full_name",
-      "Name"
-    ]),
+  let fullName = this.getFieldValue(fields, formData, [
+    "full name",
+    "fullname",
+    "full_name",
+    "Name"
+  ]) || "";
 
-  email: this.getFieldValue(fields, formData, [
+  let email = this.getFieldValue(fields, formData, [
     "email",
     "email address",
     "Email"
-  ]) || "",
+  ]) || "";
 
-  phone: this.getFieldValue(fields, formData, [
+  let phone = this.getFieldValue(fields, formData, [
     "phone",
     "phone number",
     "mobile",
     "mobile number",
     "contact number",
     "Mobile Number",
-  ]),
+  ]) || "";
 
-  password: this.getFieldValue(fields, formData, [
-    "password",
-    "Password"
-  ]),
+  // Split full name if first/last name not provided
+  if (fullName && (!firstName || !lastName)) {
+    const parts = fullName.trim().split(/\s+/);
 
-  dateOfBirth: this.getFieldValue(fields, formData, [
-    "dob",
-    "date of birth",
-    "birth date",
-    "birthday",
-  ]),
+    if (!firstName) {
+      firstName = parts.shift() || "";
+    }
 
-  avatarUrl: this.getFieldValue(fields, formData, [
-    "avatar",
-    "Avatar",
-  ]),
+    if (!lastName) {
+      lastName = parts.join(" ");
+    }
+  }
 
-  schoolName: this.getFieldValue(fields, formData, [
-    "school",
-    "school name",
-    "School"
-  ]),
+  firstName = firstName.trim();
+  lastName = lastName.trim();
+  fullName = fullName || `${firstName} ${lastName}`.trim();
+  phone = phone.trim();
 
-  grade: this.getFieldValue(fields, formData, [
-    "grade",
-    "class",
-    "year",
-    "standard",
-  ]),
+  return {
+    firstName,
+    lastName,
+    fullName,
+    email,
+    phone,
+    password: this.getFieldValue(fields, formData, [
+      "password",
+      "Password"
+    ]),
 
-  country: this.getFieldValue(fields, formData, [
-    "country",
-    "country of residence",
-  ]),
+    dateOfBirth: this.getFieldValue(fields, formData, [
+      "dob",
+      "date of birth",
+      "birth date",
+      "birthday",
+    ]),
 
-  fatherName: this.getFieldValue(fields, formData, [
-    "father",
-    "father's name",
-    "father name",
-  ]),
+    avatarUrl: this.getFieldValue(fields, formData, [
+      "avatar",
+      "Avatar",
+    ]),
 
-  innovationTitle: this.getFieldValue(fields, formData, [
-    "innovation title",
-    "title",
-  ]),
+    schoolName: this.getFieldValue(fields, formData, [
+      "school",
+      "school name",
+      "School"
+    ]),
 
-  innovationDocument: this.getFieldValue(fields, formData, [
-    "innovation document",
-    "document",
-    "file",
-  ]),
-};
+    grade: this.getFieldValue(fields, formData, [
+      "grade",
+      "class",
+      "year",
+      "standard",
+    ]),
+
+    country: this.getFieldValue(fields, formData, [
+      "country",
+      "country of residence",
+    ]),
+
+    fatherName: this.getFieldValue(fields, formData, [
+      "father",
+      "father's name",
+      "father name",
+    ]),
+
+    innovationTitle: this.getFieldValue(fields, formData, [
+      "innovation title",
+      "title",
+    ]),
+
+    innovationDocument: this.getFieldValue(fields, formData, [
+      "innovation document",
+      "document",
+      "file",
+    ]),
+  };
 }
 private async getContest(id: string) {
   const contest = await this.contestRepo.findById(id);
