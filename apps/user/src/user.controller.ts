@@ -125,12 +125,13 @@ export class UserController {
   res: Response
 ) {
   try {
-    const { role, page, limit } = req.query as getUsersQueryDto;
+    const { role, page, limit, search } = req.query as getUsersQueryDto;
 
     const result = await this.userRepo.getUsers({
       role,
       page,
-      limit
+      limit,
+      search
     });
 
     if (result.users && result.users.length > 0) {

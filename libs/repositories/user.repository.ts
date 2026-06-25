@@ -128,16 +128,11 @@ export class UserRepository {
 
 
   // get all users, and filter also for role
-  async getUsers(filters: { role?: UserRole; page?: number; limit?: number }) {
-    const { role, page = 1, limit = 10 } = filters;
+  async getUsers(filters: { role?: UserRole; page?: number; limit?: number; search?: string }) {
+    const { role, page = 1, limit = 10, search } = filters;
 
-    const qb = this.repo.createQueryBuilder("user");
-
-    if (role) {
-      qb.andWhere("user.role = :role", { role });
-    }
-
-    qb.leftJoinAndSelect("user.adminProfile", "adminProfile")
+    const qb = this.repo.createQueryBuilder("user")
+      .leftJoinAndSelect("user.adminProfile", "adminProfile")
       .leftJoinAndSelect("user.judgeProfile", "judgeProfile")
       .leftJoinAndSelect("judgeProfile.contestAssignments", "contestAssignments")
       .leftJoinAndSelect("contestAssignments.contest", "judgeContest")
@@ -147,6 +142,17 @@ export class UserRepository {
       .leftJoinAndSelect("participants.contest", "participantContest")
       .leftJoinAndSelect("user.createdContests", "createdContests")
       .leftJoinAndSelect("user.country", "country");
+
+    if (role) {
+      qb.andWhere("user.role = :role", { role });
+    }
+
+    if (search) {
+      qb.andWhere(
+        "(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.fullName ILIKE :search OR user.email ILIKE :search OR (user.role = :participantRole AND participantContest.name ILIKE :search))",
+        { search: `%${search}%`, participantRole: UserRole.PARTICIPANT }
+      );
+    }
 
      qb.orderBy("user.created_at", "DESC");
     qb.skip((page - 1) * limit);

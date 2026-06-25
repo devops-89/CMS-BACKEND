@@ -14,7 +14,8 @@ export const getUserByIdSchema=z.object({
 export const getUsersQuerySchema=z.object({
     role:z.nativeEnum(UserRole).optional(),
     page:z.coerce.number().default(1),
-    limit:z.coerce.number().default(10)
+    limit:z.coerce.number().default(10),
+    search:z.string().optional()
 })
 
 export const updateUserStatusSchema = z.object({
