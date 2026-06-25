@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import userRoutes from "./user.routes";
 import countryRoutes from "./modules/country/country.routes";
+import permissionRoutes from "./modules/permissions/permission.routes";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/countries", countryRoutes);
+app.use("/permissions", permissionRoutes);
 app.use("/", userRoutes);
 
 
