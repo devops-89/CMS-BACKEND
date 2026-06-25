@@ -77,6 +77,8 @@ export class UserRepository {
         relations: [
           "participantProfile",
           "participantProfile.submission",
+          "participantProfile.submission.template",
+          "formTemplate",
           "participants",
           "participants.contest",
           "createdContests",

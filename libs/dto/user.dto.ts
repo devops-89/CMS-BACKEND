@@ -42,7 +42,8 @@ export const updateUserSchema = z.object({
   lastName: z.string().optional(),
   phone: z.string().optional(),
   avatarUrl: z.string().optional(),
-});
+  userId: z.string().optional(),
+}).catchall(z.any());
 
 export type updateUserDto = z.infer<typeof updateUserSchema>;
 

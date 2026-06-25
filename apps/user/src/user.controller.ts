@@ -5,6 +5,7 @@ import {
   JudgeProfileRepository,
   AdminProfileRepository,
   ParticipantRepository,
+  FormSubmissionRepository,
 } from "@libs/repositories";
 
 import {
@@ -31,6 +32,7 @@ export class UserController {
   private judgeRepo = new JudgeProfileRepository();
   private participantRepo = new ParticipantProfileRepository();
   private participantEntityRepo = new ParticipantRepository();
+  private submissionRepo = new FormSubmissionRepository();
   private userService = new UserService();
   private s3Service = new S3Service();
 
@@ -295,16 +297,148 @@ async deleteUserById(req:AuthRequest<deleteUserByIdDto>,res:Response){
 
 async updateUserDetails(req: AuthRequest<{ id: string }, {}, updateUserDto>, res: Response) {
     try {
-        const { id } = req.params;
+        const userId = req.params.id || (req.body as any).userId || (req.body as any).id;
+        
+        if (!userId) {
+            return res.status(400).json({
+                message: "User ID is required!"
+            });
+        }
 
-        const existing = await this.userRepo.getUserById(id);
+        const existing = await this.userRepo.getUserById(userId);
         if (!existing) {
             return res.status(404).json({
                 message: "User Not Found!"
             });
         }
 
-        const updated = await this.userRepo.updateUser(id, req.body);
+        // Handle file uploads if files are attached
+        const files = req.files as any[];
+        if (files && files.length > 0) {
+            for (const file of files) {
+                if (file.fieldname === "avatar" || file.fieldname === "avatarUrl") {
+                    const key = `users/avatar-${userId}-${Date.now()}-${file.originalname}`;
+                    const url = await this.s3Service.uploadFile(key, file.buffer, file.mimetype);
+                    req.body.avatarUrl = url;
+                } else if (file.fieldname === "file") {
+                    const key = `users/profile-${userId}/file-${Date.now()}-${file.originalname}`;
+                    const url = await this.s3Service.uploadFile(key, file.buffer, file.mimetype);
+                    req.body.file = url;
+
+                    let fileFieldId: string | null = null;
+                    const template = existing.participantProfile?.submission?.template || existing.formTemplate;
+                    if (template && template.schema && Array.isArray(template.schema.fields)) {
+                        const fileField = template.schema.fields.find(
+                            (field: any) => field.type === "file_upload" || field.type === "file"
+                        );
+                        if (fileField) {
+                            fileFieldId = fileField.id;
+                        }
+                    }
+
+                    if (fileFieldId) {
+                        req.body[fileFieldId] = url;
+                    }
+
+                    if (existing.role === "participant" && existing.participantProfile?.submission) {
+                        const submission = existing.participantProfile.submission;
+                        const submissionData = submission.data || {};
+                        const keyToUpdate = fileFieldId || "file";
+                        submissionData[keyToUpdate] = url;
+                        await this.submissionRepo.update(submission.id, submissionData);
+                    }
+                } else {
+                    const key = `users/profile-${userId}/${file.fieldname}-${Date.now()}-${file.originalname}`;
+                    const url = await this.s3Service.uploadFile(key, file.buffer, file.mimetype);
+                    
+                    req.body[file.fieldname] = url;
+
+                    // Support nested keys like formData[field]
+                    const match = file.fieldname.match(/formData\[(.*?)\]/);
+                    if (match && match[1]) {
+                        req.body[match[1]] = url;
+                    }
+                }
+            }
+        }
+
+        // Standard user table fields to update
+        const userFields = ["firstName", "lastName", "fullName", "phone", "email", "avatarUrl", "countryId"];
+        const userUpdateData: any = {};
+        for (const key of userFields) {
+            if (req.body[key] !== undefined) {
+                userUpdateData[key] = req.body[key];
+            }
+        }
+
+        // Auto-generate fullName if firstName or lastName is updated
+        if ((req.body.firstName || req.body.lastName) && !req.body.fullName) {
+            const fn = req.body.firstName !== undefined ? req.body.firstName : (existing.firstName || "");
+            const ln = req.body.lastName !== undefined ? req.body.lastName : (existing.lastName || "");
+            userUpdateData.fullName = `${fn} ${ln}`.trim();
+        }
+
+        // If user is a participant, update JSONB and ParticipantProfile table
+        if (existing.role === "participant") {
+            const updatedProfileData = {
+                ...(existing.participant_profile_data || {}),
+                ...req.body,
+            };
+
+            // Remove standard user properties from JSONB to keep it clean
+            for (const key of userFields) {
+                delete updatedProfileData[key];
+            }
+            delete updatedProfileData.userId;
+            delete updatedProfileData.id;
+
+            userUpdateData.participant_profile_data = updatedProfileData;
+
+            // Update/Create ParticipantProfile entry
+            const profileUpdateData: any = {};
+            
+            if (req.body.dateOfBirth !== undefined) {
+                profileUpdateData.dateOfBirth = req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null;
+            } else if ((req.body as any).dob !== undefined) {
+                profileUpdateData.dateOfBirth = (req.body as any).dob ? new Date((req.body as any).dob) : null;
+            }
+
+            if ((req.body as any).schoolName !== undefined) {
+                profileUpdateData.schoolName = (req.body as any).schoolName;
+            } else if ((req.body as any).school !== undefined) {
+                profileUpdateData.schoolName = (req.body as any).school;
+            }
+
+            if ((req.body as any).grade !== undefined) {
+                profileUpdateData.grade = (req.body as any).grade;
+            } else if ((req.body as any).class !== undefined) {
+                profileUpdateData.grade = (req.body as any).class;
+            }
+
+            if ((req.body as any).country !== undefined) {
+                profileUpdateData.country = (req.body as any).country;
+            }
+
+            if (Object.keys(profileUpdateData).length > 0) {
+                const profile = await this.participantRepo.findByUserId(userId);
+                if (profile) {
+                    await this.participantRepo.updateParticipantProfile(userId, profileUpdateData);
+                } else {
+                    await this.participantRepo.createProfile({
+                        user: existing,
+                        ...profileUpdateData,
+                    });
+                }
+            }
+        }
+
+        // Save User changes
+        if (Object.keys(userUpdateData).length > 0) {
+            await this.userRepo.updateUser(userId, userUpdateData);
+        }
+
+        // Retrieve full updated details
+        const updated = await this.userRepo.getUserById(userId);
 
         return res.status(200).json({
             message: "User Details Updated Successfully.",

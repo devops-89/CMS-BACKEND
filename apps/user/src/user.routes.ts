@@ -39,6 +39,32 @@ const parseMultipartData = (req: any, res: any, next: any) => {
   next();
 };
 
+const parseUpdateMultipartData = (req: any, res: any, next: any) => {
+  if (req.body) {
+    const { formData, ...rest } = req.body;
+    let resolvedFormData = {};
+
+    if (formData) {
+      if (typeof formData === "string") {
+        try {
+          resolvedFormData = JSON.parse(formData);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      } else if (typeof formData === "object") {
+        resolvedFormData = formData;
+      }
+    }
+
+    req.body = {
+      ...rest,
+      ...resolvedFormData,
+    };
+  }
+  next();
+};
+
+
 const controller=new UserController();
 
 
@@ -72,6 +98,8 @@ router.put(
   "/:id",
   authenticate,
   authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE),
+  upload.any(),
+  parseUpdateMultipartData,
   validate(getUserByIdSchema, "params"),
   validate(updateUserSchema, "body"),
   controller.updateUserDetails.bind(controller)
