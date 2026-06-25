@@ -145,9 +145,11 @@ export class ContestController {
       const { entryIds, status, reason } = req.body;
       const data = await service.bulkUpdateEntriesStatus(req.params.id, entryIds, status, reason);
 
-      if (status === "semifinal" || status === "winner") {
+      if (status === "semifinal" || status === "final" || status === "winner") {
         const eventType = status === "semifinal"
           ? TEMPLATE_EVENT_TYPE.SELECTED_AS_SEMI_FINALIST
+          : status === "final"
+          ? TEMPLATE_EVENT_TYPE.SELECTED_AS_FINALIST
           : TEMPLATE_EVENT_TYPE.ANNOUNCED_AS_WINNER;
 
         for (const entry of data) {
