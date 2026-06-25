@@ -29,6 +29,6 @@ async findByUserId(userId: string) {
  
 
   async updateJudgeProfile(userId:string,data:Partial<JudgeProfile>){
-    this.repo.update({user:{id:userId}},data);
+    return this.repo.update({user:{id:userId}},data);
   }
 }

@@ -432,6 +432,42 @@ async updateUserDetails(req: AuthRequest<{ id: string }, {}, updateUserDto>, res
             }
         }
 
+        // If user is a judge, update JudgeProfile table
+        if (existing.role === "judge" && req.body.expertise !== undefined) {
+            let expertiseArray: string[] | null = null;
+            const val = req.body.expertise;
+            if (Array.isArray(val)) {
+                expertiseArray = val.map(v => String(v).trim());
+            } else if (typeof val === "string") {
+                if (val.trim() === "") {
+                    expertiseArray = [];
+                } else if (val.startsWith("[") && val.endsWith("]")) {
+                    try {
+                        const parsed = JSON.parse(val);
+                        if (Array.isArray(parsed)) {
+                            expertiseArray = parsed.map(v => String(v).trim());
+                        }
+                    } catch (e) {
+                        expertiseArray = val.split(",").map(v => v.trim()).filter(Boolean);
+                    }
+                } else {
+                    expertiseArray = val.split(",").map(v => v.trim()).filter(Boolean);
+                }
+            } else if (val === null) {
+                expertiseArray = null;
+            }
+
+            const profile = await this.judgeRepo.findByUserId(userId);
+            if (profile) {
+                await this.judgeRepo.updateJudgeProfile(userId, { expertise: expertiseArray });
+            } else {
+                await this.judgeRepo.createProfile({
+                    user: existing,
+                    expertise: expertiseArray,
+                });
+            }
+        }
+
         // Save User changes
         if (Object.keys(userUpdateData).length > 0) {
             await this.userRepo.updateUser(userId, userUpdateData);
