@@ -430,6 +430,22 @@ async updateUserDetails(req: AuthRequest<{ id: string }, {}, updateUserDto>, res
                     });
                 }
             }
+
+            // Update submission data if present
+            const submission = existing.participantProfile?.submission;
+            if (submission) {
+                const submissionData = submission.data || {};
+                let hasChanges = false;
+                for (const key of Object.keys(submissionData)) {
+                    if (req.body[key] !== undefined) {
+                        submissionData[key] = req.body[key];
+                        hasChanges = true;
+                    }
+                }
+                if (hasChanges) {
+                    await this.submissionRepo.update(submission.id, submissionData);
+                }
+            }
         }
 
         // If user is a judge, update JudgeProfile table
