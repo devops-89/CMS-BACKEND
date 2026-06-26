@@ -196,6 +196,13 @@ async getUserById(req:AuthRequest<getUserByIdDto>, res:Response){
               if (p.submission?.data) {
                 p.submission.data = await this.appendDownloadUrlsToData(p.submission.data);
               }
+              if (p.entries && Array.isArray(p.entries)) {
+                for (const entry of p.entries) {
+                  if (entry.submission?.data) {
+                    entry.submission.data = await this.appendDownloadUrlsToData(entry.submission.data);
+                  }
+                }
+              }
             }
           }
         }
@@ -247,6 +254,13 @@ async getUserDetailsByToken(req: AuthRequest, res: Response) {
                 for (const p of user.participants) {
                     if (p.submission?.data) {
                         p.submission.data = await this.appendDownloadUrlsToData(p.submission.data);
+                    }
+                    if (p.entries && Array.isArray(p.entries)) {
+                        for (const entry of p.entries) {
+                            if (entry.submission?.data) {
+                                entry.submission.data = await this.appendDownloadUrlsToData(entry.submission.data);
+                            }
+                        }
                     }
                 }
             }

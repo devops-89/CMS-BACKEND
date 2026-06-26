@@ -82,6 +82,7 @@ export class UserRepository {
           "formTemplate",
           "participants",
           "participants.contest",
+          "participants.entries",
           "createdContests",
         ],
       });
