@@ -68,6 +68,12 @@ draftedAt!: Date | null;
 isDraft!: boolean;
 
 @Column({
+  type: "boolean",
+  default: false,
+})
+isAssigned!: boolean;
+
+@Column({
   type: "text",
   nullable: true,
 })

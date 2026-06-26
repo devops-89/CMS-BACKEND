@@ -13,14 +13,20 @@ export class EntryRepository {
     return this.repo.save(entry);
   }
 
-  findByContest(contest_id: string, status?: string, page?: number, limit?: number) {
+  findByContest(
+    contest_id: string,
+    status?: string,
+    page?: number,
+    limit?: number,
+    relations: string[] = ["participant", "submission"]
+  ) {
     const where: any = { contest_id };
     if (status) {
       where.status = status;
     }
     const options: any = {
       where,
-      relations: ["participant", "submission"],
+      relations,
       order: { created_at: "DESC" },
     };
     if (page !== undefined && limit !== undefined) {

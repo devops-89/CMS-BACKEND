@@ -300,7 +300,11 @@ export class EntryService {
       entries = resEntries;
       totalDocs = count;
     } else {
-      const [resEntries, count] = await this.repo.findByContest(contest_id, status, page, limit);
+      const relations = ["participant", "submission"];
+      if (userRole === UserRole.JUDGE) {
+        relations.push("entryAssignments");
+      }
+      const [resEntries, count] = await this.repo.findByContest(contest_id, status, page, limit, relations);
       entries = resEntries;
       totalDocs = count;
     }

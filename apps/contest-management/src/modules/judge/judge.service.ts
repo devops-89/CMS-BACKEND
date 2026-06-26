@@ -70,6 +70,9 @@ export class ContestJudgeService {
         await entryAssignmentRepo.save(assignment);
         entryAssignments.push(assignment);
       }
+
+      // Refresh isAssigned status
+      await this.refreshEntriesAssignedStatus(payload.entry_ids);
     }
 
 
@@ -141,6 +144,10 @@ export class ContestJudgeService {
       await entryAssignmentRepo.save(assignment);
     }
 
+    // Refresh affected entries' isAssigned status
+    const affectedEntryIds = Array.from(new Set([...currentEntryIds, ...newEntryIds]));
+    await this.refreshEntriesAssignedStatus(affectedEntryIds);
+
     // Return the updated assignment list
     const finalAssignments = await entryAssignmentRepo.find({
       where: {
@@ -182,9 +189,17 @@ export class ContestJudgeService {
     const contest = await this.contestRepo.findById(contest_id);
     if (!contest) throw new NotFoundError("Contest not found");
 
+    // Get all entry IDs in this contest first to refresh their status after deletion
+    const entryRepo = AppDataSource.getRepository(Entry);
+    const entries = await entryRepo.find({ where: { contest_id } });
+    const entryIds = entries.map((e) => e.id);
+
     // 1. Soft delete entries in EntryAssignment table for this contest
     const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
     await entryAssignmentRepo.softDelete({ contest_id });
+
+    // Refresh isAssigned status for all entries in the contest
+    await this.refreshEntriesAssignedStatus(entryIds);
 
     // 2. Soft delete and update status to inactive for all contest judges of this contest
     await this.repo.softDeleteByContest(contest_id);
@@ -199,9 +214,18 @@ export class ContestJudgeService {
     const judgeProfile = await this.judgeRepo.findByUserId(judge_id);
     if (!judgeProfile) throw new NotFoundError("Judge profile not found");
 
-    // 1. Soft delete entries in EntryAssignment table for this contest and judge
     const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
+    // Find all entries assigned to this judge in this contest to refresh after deletion
+    const assignments = await entryAssignmentRepo.find({
+      where: { contest_id, judge_id },
+    });
+    const entryIds = assignments.map((a) => a.entry_id);
+
+    // 1. Soft delete entries in EntryAssignment table for this contest and judge
     await entryAssignmentRepo.softDelete({ contest_id, judge_id });
+
+    // Refresh isAssigned status for these entries
+    await this.refreshEntriesAssignedStatus(entryIds);
 
     // 2. Soft delete and update status to inactive for this contest judge
     await this.repo.softDeleteByContestAndJudge(contest_id, judgeProfile.id);
@@ -526,5 +550,18 @@ export class ContestJudgeService {
       message: "Evaluation updated successfully",
       evaluation,
     };
+  }
+
+  private async refreshEntriesAssignedStatus(entryIds: string[]) {
+    if (!entryIds || entryIds.length === 0) return;
+    const entryRepo = AppDataSource.getRepository(Entry);
+    const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
+
+    for (const entryId of entryIds) {
+      const count = await entryAssignmentRepo.count({
+        where: { entry_id: entryId },
+      });
+      await entryRepo.update(entryId, { isAssigned: count > 0 });
+    }
   }
 }
