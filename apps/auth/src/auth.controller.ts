@@ -267,11 +267,11 @@ export class AuthController {
         });
       }
 
-      console.log("user", user);
-
-      console.log("password", password);
-      console.log("User password", user.password);
-
+      if (user.deleted_at){
+        return res.status(403).json({
+          message:"Your profile is deleted.please contact admin to restore your profile."
+        })
+      }
       const match = await bcrypt.compare(password, user.password || "");
 
       if (!match) {

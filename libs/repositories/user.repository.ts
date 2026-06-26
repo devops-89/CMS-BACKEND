@@ -37,6 +37,7 @@ export class UserRepository {
   async findByEmail(email: string) {
     return this.repo
       .createQueryBuilder("user")
+      .withDeleted()
       .addSelect("user.password")
       .where("user.email = :email", { email })
       .getOne();
