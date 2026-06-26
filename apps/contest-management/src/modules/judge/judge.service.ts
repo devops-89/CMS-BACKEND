@@ -44,7 +44,7 @@ export class ContestJudgeService {
     const entryAssignmentRepo = AppDataSource.getRepository(EntryAssignment);
 
     if (payload.entry_ids && Array.isArray(payload.entry_ids)) {
-      // 1. Check for duplicates first
+      // 1. Check for duplicates first (ignoring soft-deleted ones)
       for (const entryId of payload.entry_ids) {
         const existingAssignment = await entryAssignmentRepo.findOne({
           where: {
@@ -52,23 +52,43 @@ export class ContestJudgeService {
             judge_id: payload.judge_id,
             entry_id: entryId,
           },
+          withDeleted: true,
         });
 
-        if (existingAssignment) {
+        if (existingAssignment && existingAssignment.deleted_at === null) {
           throw new ConflictError("This entries already assigned to this judge");
         }
       }
 
-      // 2. Create assignments since none are duplicates
+      // 2. Create/Restore assignments since none are active duplicates
       for (const entryId of payload.entry_ids) {
-        const assignment = entryAssignmentRepo.create({
-          contest_id,
-          judge_id: payload.judge_id,
-          entry_id: entryId,
-          status: EntryAssignmentStatus.PENDING,
+        const existingAssignment = await entryAssignmentRepo.findOne({
+          where: {
+            contest_id,
+            judge_id: payload.judge_id,
+            entry_id: entryId,
+          },
+          withDeleted: true,
         });
-        await entryAssignmentRepo.save(assignment);
-        entryAssignments.push(assignment);
+
+        if (existingAssignment) {
+          existingAssignment.deleted_at = null;
+          existingAssignment.status = EntryAssignmentStatus.PENDING;
+          existingAssignment.score = null;
+          existingAssignment.feedback = null;
+          existingAssignment.reviewed_at = null;
+          await entryAssignmentRepo.save(existingAssignment);
+          entryAssignments.push(existingAssignment);
+        } else {
+          const assignment = entryAssignmentRepo.create({
+            contest_id,
+            judge_id: payload.judge_id,
+            entry_id: entryId,
+            status: EntryAssignmentStatus.PENDING,
+          });
+          await entryAssignmentRepo.save(assignment);
+          entryAssignments.push(assignment);
+        }
       }
 
       // Refresh isAssigned status
@@ -135,13 +155,31 @@ export class ContestJudgeService {
     // Identify and add new assignments
     const toAddEntryIds = newEntryIds.filter((id) => !currentEntryIds.includes(id));
     for (const entryId of toAddEntryIds) {
-      const assignment = entryAssignmentRepo.create({
-        contest_id,
-        judge_id: payload.judge_id,
-        entry_id: entryId,
-        status: EntryAssignmentStatus.PENDING,
+      const existingAssignment = await entryAssignmentRepo.findOne({
+        where: {
+          contest_id,
+          judge_id: payload.judge_id,
+          entry_id: entryId,
+        },
+        withDeleted: true,
       });
-      await entryAssignmentRepo.save(assignment);
+
+      if (existingAssignment) {
+        existingAssignment.deleted_at = null;
+        existingAssignment.status = EntryAssignmentStatus.PENDING;
+        existingAssignment.score = null;
+        existingAssignment.feedback = null;
+        existingAssignment.reviewed_at = null;
+        await entryAssignmentRepo.save(existingAssignment);
+      } else {
+        const assignment = entryAssignmentRepo.create({
+          contest_id,
+          judge_id: payload.judge_id,
+          entry_id: entryId,
+          status: EntryAssignmentStatus.PENDING,
+        });
+        await entryAssignmentRepo.save(assignment);
+      }
     }
 
     // Refresh affected entries' isAssigned status
