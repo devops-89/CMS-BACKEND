@@ -75,6 +75,38 @@ export class ContestRepository {
     return this.repo.delete(id);
   }
 
+  async publishAndOfflineContests(): Promise<{ published: Contest[]; offlined: Contest[] }> {
+    const now = new Date();
+    const contestsToPublish = await this.repo.createQueryBuilder("contest")
+      .where("contest.status = :status", { status: "Draft" })
+      .andWhere("contest.start_date <= :now", { now })
+      .getMany();
+
+    if (contestsToPublish.length > 0) {
+      for (const contest of contestsToPublish) {
+        contest.status = "Published";
+      }
+      await this.repo.save(contestsToPublish);
+    }
+
+    const contestsToOffline = await this.repo.createQueryBuilder("contest")
+      .where("contest.status = :status", { status: "Published" })
+      .andWhere("contest.end_date <= :now", { now })
+      .getMany();
+
+    if (contestsToOffline.length > 0) {
+      for (const contest of contestsToOffline) {
+        contest.status = "Offline";
+      }
+      await this.repo.save(contestsToOffline);
+    }
+
+    return {
+      published: contestsToPublish,
+      offlined: contestsToOffline,
+    };
+  }
+
   // for overview stats
   getStats(id: string) {
     return this.repo.createQueryBuilder("contest")

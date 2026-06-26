@@ -11,6 +11,19 @@ const notificationService = new NotificationService();
 type ContestParams = { id: string };
 
 export class ContestController {
+  constructor() {
+    console.log("[Cron Job] Contest publish scheduler initialized to run every 2 minutes.");
+    // Run the cron job every 2 minutes (2 * 60 * 1000 ms)
+    setInterval(async () => {
+      try {
+        console.log(`[Cron Job] Running scheduled check for upcoming contests at: ${new Date().toISOString()}`);
+        await service.checkAndPublishContests();
+      } catch (err: any) {
+        console.error("[Cron Job] Error in background contest publish:", err.message);
+      }
+    }, 2 * 60 * 1000);
+  }
+
   createContest = async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user?.userId;
@@ -177,6 +190,21 @@ export class ContestController {
       return res.status(200).json({ message: "Entries updated successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
+  triggerPublishCron = async (req: Request, res: Response) => {
+    try {
+      const { published, offlined } = await service.checkAndPublishContests();
+      return res.status(200).json({
+        message: "Cron job executed successfully",
+        publishedCount: published.length,
+        offlinedCount: offlined.length,
+        published,
+        offlined,
+      });
+    } catch (e: any) {
+      return res.status(e.statusCode || 500).json({ message: e.message });
     }
   };
 }

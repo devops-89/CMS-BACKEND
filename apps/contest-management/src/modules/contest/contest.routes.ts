@@ -9,6 +9,7 @@ import { createContestSchema, updateContestSchema, updateContestStatusSchema, co
 const router = Router();
 const controller = new ContestController();
 
+router.post("/cron/publish-status", controller.triggerPublishCron.bind(controller));
 router.get("/", controller.getAll.bind(controller));
 router.post("/", authenticate, authorize(UserRole.ADMIN), validate(createContestSchema, "body"), controller.createContest.bind(controller));
 router.patch("/:id/entries/bulk-status", authenticate, authorize(UserRole.ADMIN), validate(contestIdParamSchema, "params"), validate(bulkUpdateEntriesStatusSchema, "body"), controller.bulkUpdateEntriesStatus.bind(controller));

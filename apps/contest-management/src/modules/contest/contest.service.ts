@@ -537,4 +537,23 @@ async getContestOverview(id: string, userId?: string) {
 
     return await this.entryRepo.findByIdsWithUserAndContest(entryIds);
   }
+
+  async checkAndPublishContests() {
+    try {
+      const { published, offlined } = await this.repo.publishAndOfflineContests();
+      if (published.length > 0) {
+        console.log(`[Cron Job] Published ${published.length} contests: ${published.map(c => c.name).join(", ")}`);
+      }
+      if (offlined.length > 0) {
+        console.log(`[Cron Job] Offlined ${offlined.length} contests: ${offlined.map(c => c.name).join(", ")}`);
+      }
+      if (published.length === 0 && offlined.length === 0) {
+        console.log(`[Cron Job] No contests to publish or offline at this time.`);
+      }
+      return { published, offlined };
+    } catch (error) {
+      console.error("[Cron Job] Error managing contest statuses:", error);
+      throw error;
+    }
+  }
 }
