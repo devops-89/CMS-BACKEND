@@ -22,7 +22,11 @@ export class EntryRepository {
   ) {
     const where: any = { contest_id };
     if (status) {
-      where.status = status;
+      if (status.includes(",")) {
+        where.status = In(status.split(",").map((s) => s.trim()));
+      } else {
+        where.status = status;
+      }
     }
     const options: any = {
       where,
@@ -40,7 +44,11 @@ export class EntryRepository {
   findByParticipant(contest_id: string, participant_id: string, status?: string, page?: number, limit?: number) {
     const where: any = { contest_id, participant_id };
     if (status) {
-      where.status = status;
+      if (status.includes(",")) {
+        where.status = In(status.split(",").map((s) => s.trim()));
+      } else {
+        where.status = status;
+      }
     }
     const options: any = {
       where,

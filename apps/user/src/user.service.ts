@@ -695,7 +695,11 @@ phone = phone.trim();
       .orderBy("entry.created_at", "DESC");
 
     if (status) {
-      qb.andWhere("entry.status = :status", { status });
+      if (status.includes(",")) {
+        qb.andWhere("entry.status IN (:...statuses)", { statuses: status.split(",").map(s => s.trim()) });
+      } else {
+        qb.andWhere("entry.status = :status", { status });
+      }
     }
 
     if (search) {
