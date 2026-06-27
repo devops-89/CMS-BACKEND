@@ -272,6 +272,13 @@ export class AuthController {
           message:"Your profile is deleted.please contact admin to restore your profile."
         })
       }
+
+      if (user.status === UserStatus.PENDING) {
+        return res.status(403).json({
+          message: "Your account is pending verification. Please verify the OTP sent to your email to activate your account."
+        });
+      }
+
       const match = await bcrypt.compare(password, user.password || "");
 
       if (!match) {
