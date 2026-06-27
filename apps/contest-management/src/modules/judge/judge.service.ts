@@ -3,6 +3,7 @@ import { ContestRepository, JudgeProfileRepository } from "@libs/repositories";
 import { NotFoundError, ConflictError, InternalServerError, BadRequestError } from "@libs/utils/errors.util";
 import { AppDataSource } from "@libs/database/data-source";
 import { EntryAssignment, EntryAssignmentStatus, UserStatus, Entry, VotingPeriod, VotingType, JudgeEvaluation, JudgeEvaluationHistory } from "@libs/entities";
+import { S3Service } from "@libs/s3";
 
 export class ContestJudgeService {
   private repo = new ContestJudgeRepository();
@@ -276,6 +277,8 @@ export class ContestJudgeService {
 
     const qb = entryAssignmentRepo.createQueryBuilder("assignment")
       .leftJoinAndSelect("assignment.contest", "contest")
+      .leftJoinAndSelect("contest.entryLevelTemplate", "entryLevelTemplate")
+      .leftJoinAndSelect("contest.userLevelTemplate", "userLevelTemplate")
       .leftJoinAndSelect("contest.votingPeriods", "votingPeriods")
       .leftJoinAndSelect("assignment.entry", "entry")
       .leftJoinAndSelect("entry.submission", "submission")
@@ -287,6 +290,14 @@ export class ContestJudgeService {
     qb.take(limit);
 
     const [docs, totalDocs] = await qb.getManyAndCount();
+
+    await Promise.all(
+      docs.map(async (doc) => {
+        if (doc.entry && doc.contest?.entryLevelTemplate) {
+          doc.entry = await this.appendDownloadUrlsToEntry(doc.entry, doc.contest.entryLevelTemplate);
+        }
+      })
+    );
 
     const totalPages = Math.ceil(totalDocs / limit);
     const hasNextPage = page < totalPages;
@@ -301,6 +312,36 @@ export class ContestJudgeService {
       hasNextPage,
       hasPrevPage,
     };
+  }
+
+  private async appendDownloadUrlsToEntry(
+    entry: any,
+    template: any
+  ): Promise<any> {
+    if (!entry || !entry.submission || !entry.submission.data || !template) {
+      return entry;
+    }
+
+    const fields = template.schema?.fields || [];
+    const s3Service = new S3Service();
+    const submissionData = { ...entry.submission.data };
+
+    for (const field of fields) {
+      if (field.type === "file_upload") {
+        const val = submissionData[field.id];
+        if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
+          try {
+            const downloadUrl = await s3Service.getDownloadUrl(val);
+            submissionData[`${field.id}_downloadUrl`] = downloadUrl;
+          } catch (error) {
+            console.error(`Failed to generate download URL for field ${field.id}:`, error);
+          }
+        }
+      }
+    }
+
+    entry.submission.data = submissionData;
+    return entry;
   }
 
   async evaluateEntryService(
