@@ -624,11 +624,11 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
 
   listEntries = async (req: AuthRequest, res: Response) => {
     try {
-      const { status, page, limit } = req.query as Record<string, string>;
+      const { status, page, limit, search } = req.query as Record<string, string>;
       const pageNum = page ? parseInt(page, 10) : 1;
       const limitNum = limit ? parseInt(limit, 10) : 10;
 
-      const data = await this.userService.listEntries(status, pageNum, limitNum);
+      const data = await this.userService.listEntriesService(status, pageNum, limitNum, search);
 
       return res.status(200).json({
         message: "Entries fetched successfully.",

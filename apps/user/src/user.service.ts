@@ -684,7 +684,7 @@ phone = phone.trim();
     };
   }
 
-  async listEntries(status?: string, page: number = 1, limit: number = 10) {
+  async listEntriesService(status?: string, page: number = 1, limit: number = 10, search?: string) {
     const entryRepo = AppDataSource.getRepository(Entry);
 
     const qb = entryRepo.createQueryBuilder("entry")
@@ -696,6 +696,10 @@ phone = phone.trim();
 
     if (status) {
       qb.andWhere("entry.status = :status", { status });
+    }
+
+    if (search) {
+      qb.andWhere("contest.name ILIKE :search", { search: `%${search}%` });
     }
 
     qb.skip((page - 1) * limit);

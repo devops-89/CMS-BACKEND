@@ -296,6 +296,16 @@ export class ContestJudgeService {
         if (doc.entry && doc.contest?.entryLevelTemplate) {
           doc.entry = await this.appendDownloadUrlsToEntry(doc.entry, doc.contest.entryLevelTemplate);
         }
+        if (doc.contest) {
+          if ('entryLevelTemplate' in doc.contest) {
+            (doc.contest as any).entry_level_template = doc.contest.entryLevelTemplate;
+            delete (doc.contest as any).entryLevelTemplate;
+          }
+          if ('userLevelTemplate' in doc.contest) {
+            (doc.contest as any).user_level_template = doc.contest.userLevelTemplate;
+            delete (doc.contest as any).userLevelTemplate;
+          }
+        }
       })
     );
 

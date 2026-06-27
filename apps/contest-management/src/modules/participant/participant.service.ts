@@ -62,6 +62,21 @@ export class ParticipantService {
             p.submission = await this.appendDownloadUrlsToSubmission(p.submission, template);
           }
         }
+
+        if (p.user) {
+          if (p.user.avatarUrl) {
+            try {
+              const s3Service = new S3Service();
+              (p.user as any).avatarDownloadUrl = await s3Service.getDownloadUrl(p.user.avatarUrl);
+            } catch (e) {
+              console.error("Failed to generate download url for user avatar", e);
+            }
+          }
+          if (p.user.participant_profile_data) {
+            p.user.participant_profile_data = await this.appendDownloadUrlsToData(p.user.participant_profile_data);
+          }
+        }
+
         p.entries = entriesByParticipant[p.id] || [];
         return p;
       })
@@ -761,5 +776,28 @@ private async ensureParticipantNotExists(contestId: string, userId: string) {
 
     submission.data = submissionData;
     return submission;
+  }
+
+  private async appendDownloadUrlsToData(data: Record<string, any>): Promise<Record<string, any>> {
+    if (!data || typeof data !== "object") return data;
+
+    const result = { ...data };
+    const s3Service = new S3Service();
+    for (const key of Object.keys(result)) {
+      const val = result[key];
+      if (typeof val === "string") {
+        if (val.startsWith("http://") || val.startsWith("https://") || val.includes("users/")) {
+          try {
+            const usersIdx = val.indexOf("users/");
+            const s3Key = usersIdx !== -1 ? val.substring(usersIdx) : val;
+            const downloadUrl = await s3Service.getDownloadUrl(s3Key);
+            result[`${key}_downloadUrl`] = downloadUrl;
+          } catch (error) {
+            console.error(`Failed to generate download URL for key ${key}:`, error);
+          }
+        }
+      }
+    }
+    return result;
   }
 }
