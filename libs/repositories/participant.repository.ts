@@ -12,10 +12,10 @@ export class ParticipantRepository {
     return this.repo.save(participant);
   }
 
-  findByContest(contest_id: string) {
+  findByContest(contest_id: string, relations: string[] = ["submission"]) {
     return this.repo.find({
       where: { contest_id },
-      relations: ["submission"],
+      relations,
       order: { joined_at: "DESC" },
     });
   }

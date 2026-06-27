@@ -31,7 +31,7 @@ export class ParticipantService {
       ? await this.templateRepo.findById(contest.entry_level_template_id)
       : null;
 
-    const participants = await this.repo.findByContest(contest_id);
+    const participants = await this.repo.findByContest(contest_id, ["submission", "user"]);
     const [allEntries] = await this.entryRepo.findByContest(contest_id);
 
     if (entryTemplate && allEntries.length > 0) {
