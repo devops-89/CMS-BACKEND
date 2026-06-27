@@ -1,5 +1,5 @@
-import { UserRole } from "@libs/entities";
-import { ParticipantProfileRepository, ParticipantRepository, UserRepository } from "@libs/repositories";
+import { UserRole, Entry } from "@libs/entities";
+import { ParticipantProfileRepository, ParticipantRepository, UserRepository, EntryRepository } from "@libs/repositories";
 import { FormSubmissionRepository } from "@libs/repositories";
 import { FormTemplateRepository } from "@libs/repositories";
 
@@ -18,6 +18,7 @@ export class ParticipantService {
   private userRepo = new UserRepository();
   private participantProfileRepo = new ParticipantProfileRepository();
   private notificationService = new NotificationService();
+  private entryRepo = new EntryRepository();
 
 
 
@@ -26,8 +27,30 @@ export class ParticipantService {
     const template = contest?.user_level_template_id 
       ? await this.templateRepo.findById(contest.user_level_template_id)
       : null;
+    const entryTemplate = contest?.entry_level_template_id
+      ? await this.templateRepo.findById(contest.entry_level_template_id)
+      : null;
 
     const participants = await this.repo.findByContest(contest_id);
+    const [allEntries] = await this.entryRepo.findByContest(contest_id);
+
+    if (entryTemplate && allEntries.length > 0) {
+      await Promise.all(
+        allEntries.map(async (entry) => {
+          if (entry.submission) {
+            entry.submission = await this.appendDownloadUrlsToSubmission(entry.submission, entryTemplate);
+          }
+        })
+      );
+    }
+
+    const entriesByParticipant: Record<string, Entry[]> = {};
+    for (const entry of allEntries) {
+      if (!entriesByParticipant[entry.participant_id]) {
+        entriesByParticipant[entry.participant_id] = [];
+      }
+      entriesByParticipant[entry.participant_id].push(entry);
+    }
 
     return Promise.all(
       participants.map(async (p) => {
@@ -39,6 +62,7 @@ export class ParticipantService {
             p.submission = await this.appendDownloadUrlsToSubmission(p.submission, template);
           }
         }
+        p.entries = entriesByParticipant[p.id] || [];
         return p;
       })
     );
