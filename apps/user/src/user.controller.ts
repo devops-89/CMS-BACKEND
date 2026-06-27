@@ -460,6 +460,86 @@ async updateUserDetails(req: AuthRequest<{ id: string }, {}, updateUserDto>, res
                     await this.submissionRepo.update(submission.id, submissionData);
                 }
             }
+
+            // Update submission data for all contests this user is participating in
+            const participants = await this.participantEntityRepo.findByUserId(userId);
+            if (participants && participants.length > 0) {
+                for (const participant of participants) {
+                    const partSubmission = participant.submission;
+                    if (partSubmission) {
+                        const submissionData = partSubmission.data || {};
+                        const fields = partSubmission.template?.schema?.fields || [];
+                        let hasChanges = false;
+
+                        // Get main template fields for label matching
+                        const mainTemplate = existing.participantProfile?.submission?.template || existing.formTemplate;
+                        const mainFields = mainTemplate?.schema?.fields || [];
+                        const mainSubmissionData = existing.participantProfile?.submission?.data || {};
+
+                        for (const field of fields) {
+                            const fieldId = field.id;
+                            const label = (field.label || "").trim().toLowerCase();
+                            const type = (field.type || "").toLowerCase();
+
+                            // 1. Direct match by field ID
+                            if (req.body[fieldId] !== undefined) {
+                                submissionData[fieldId] = req.body[fieldId];
+                                hasChanges = true;
+                                continue;
+                            }
+
+                            // 2. Match by matching label from the main template
+                            let matchedValue: any = undefined;
+                            if (mainFields.length > 0) {
+                                const matchingMainField = mainFields.find(
+                                    (mf: any) => (mf.label || "").trim().toLowerCase() === label
+                                );
+                                if (matchingMainField) {
+                                    matchedValue = req.body[matchingMainField.id] !== undefined
+                                        ? req.body[matchingMainField.id]
+                                        : mainSubmissionData[matchingMainField.id];
+                                }
+                            }
+
+                            if (matchedValue !== undefined) {
+                                submissionData[fieldId] = matchedValue;
+                                hasChanges = true;
+                                continue;
+                            }
+
+                            // 3. Fallback to standard field label/type matching
+                            let valueToUpdate: any = undefined;
+
+                            if (type === "email" || label.includes("email")) {
+                                valueToUpdate = req.body.email;
+                            } else if (type === "phone" || type === "tel" || label.includes("phone") || label.includes("mobile")) {
+                                valueToUpdate = req.body.phone;
+                            } else if (label.includes("full name") || label.includes("name")) {
+                                valueToUpdate = req.body.fullName || (req.body.firstName && req.body.lastName ? `${req.body.firstName} ${req.body.lastName}`.trim() : undefined);
+                            } else if (label.includes("school") || label.includes("college") || label.includes("university") || label.includes("institution")) {
+                                valueToUpdate = req.body.schoolName || req.body.school;
+                            } else if (label.includes("grade") || label.includes("class") || label.includes("year") || label.includes("standard")) {
+                                valueToUpdate = req.body.grade || req.body.class;
+                            } else if (label.includes("dob") || label.includes("date of birth") || label.includes("birth")) {
+                                valueToUpdate = req.body.dateOfBirth || req.body.dob;
+                            } else if (label.includes("country") || label.includes("nation") || label.includes("location")) {
+                                valueToUpdate = req.body.country;
+                            } else if (type === "file_upload" || type === "file" || label.includes("file") || label.includes("upload")) {
+                                valueToUpdate = req.body.file;
+                            }
+
+                            if (valueToUpdate !== undefined) {
+                                submissionData[fieldId] = valueToUpdate;
+                                hasChanges = true;
+                            }
+                        }
+
+                        if (hasChanges) {
+                            await this.submissionRepo.update(partSubmission.id, submissionData);
+                        }
+                    }
+                }
+            }
         }
 
         // If user is a judge, update JudgeProfile table

@@ -27,6 +27,13 @@ export class ParticipantRepository {
     });
   }
 
+  findByUserId(user_id: string) {
+    return this.repo.find({
+      where: { user_id },
+      relations: ["submission", "submission.template"],
+    });
+  }
+
   findOne(options: any) {
     return this.repo.findOne(options);
   }
