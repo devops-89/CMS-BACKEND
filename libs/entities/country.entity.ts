@@ -21,6 +21,9 @@ export class Country {
     @Column({ type: 'varchar', length: 10, nullable: true })
     currencyCode?: string; // INR, USD
 
+      @Column({ type: 'varchar', nullable: true })
+    currencyName?: string; // Rupee, Dollar
+
     @Column({ type: 'boolean', default: true })
     isActive!: boolean;
 

@@ -5,6 +5,7 @@ export const createCountrySchema = z.object({
   code: z.string().min(1, "ISO code is required").max(10),
   phoneCode: z.string().max(10).optional(),
   currencyCode: z.string().max(10).optional(),
+  currencyName: z.string().optional(),
   isActive: z.boolean().optional(),
 });
 
