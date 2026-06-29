@@ -435,25 +435,23 @@ export class AuthController {
         });
       }
 
-      // 🔥 1. Delete old OTP
+      //  Delete old OTP
       await this.otpRepo.deleteUserOtps(user.id);
 
-      // 🔥 2. Generate OTP
+      //  Generate OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-      // 🔐 3. Hash OTP
+      //  Hash OTP
       const hashedOtp = await bcrypt.hash(otp, 10);
 
-      // ⏱ 4. Expiry (5 min)
+      //  Expiry (5 min)
       const expires = new Date();
       expires.setMinutes(expires.getMinutes() + 5);
 
-      // 💾 5. Save OTP
+      //  Save OTP
       await this.otpRepo.createOtp(user.id, hashedOtp, expires);
 
-      // 📩 TODO: Send via email
-      console.log("OTP:", otp);
-      console.log("User Email:", user.email);
+      //  Send via email
 
       await this.notificationService.sendOtp(user.email || "", otp, user.firstName || "");
 

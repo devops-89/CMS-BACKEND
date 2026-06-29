@@ -50,6 +50,10 @@ export class ParticipantRepository {
     return this.repo.softDelete(id);
   }
 
+  restore(id: string) {
+    return this.repo.restore(id);
+  }
+
   countByUser(user_id: string) {
     return this.repo.count({
       where: { user_id },

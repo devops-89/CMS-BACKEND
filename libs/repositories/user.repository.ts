@@ -112,6 +112,10 @@ export class UserRepository {
     return result.affected !== 0;
   }
 
+  async restore(id: string) {
+    return this.repo.restore(id);
+  }
+
   async findAllByRole(role: UserRole) {
     return this.repo.find({ where: { role } });
   }

@@ -201,7 +201,7 @@ phone = phone.trim();
   const existingUser = await this.userRepo.findByEmail(email);
 
   let user;
-  if (existingUser) {
+  if (existingUser && !existingUser.deleted_at) {
     if (existingUser.role !== UserRole.PARTICIPANT) {
       throw new ConflictError("User already exists with this emailId!");
     }
@@ -238,27 +238,47 @@ phone = phone.trim();
     const hashedPassword = await bcrypt.hash(password, 12);
     fullName = fullName || `${firstName} ${lastName}`.trim();
 
-    // =====================================================
-    // Create User
-    // =====================================================
-    user = await this.userRepo.createUser({
-      email,
-      password: hashedPassword,
-      role: UserRole.PARTICIPANT,
-      status: UserStatus.PENDING,
-      form_template_id: template.id,
-      isSelfRegistered: true,
-      firstName,
-      lastName,
-      fullName,
-      phone,
-      countryId,
-      avatarUrl: avatarUrl || undefined,
-      participant_profile_data: {
+    if (existingUser && existingUser.deleted_at) {
+      await this.userRepo.restore(existingUser.id);
+      user = existingUser;
+      user.deleted_at = null as any;
+      user.password = hashedPassword;
+      user.role = UserRole.PARTICIPANT;
+      user.status = UserStatus.PENDING;
+      user.firstName = firstName;
+      user.lastName = lastName;
+      user.fullName = fullName;
+      user.phone = phone;
+      user.countryId = countryId;
+      user.avatarUrl = avatarUrl || undefined;
+      user.form_template_id = template.id;
+      user.isSelfRegistered = true;
+      user.participant_profile_data = {
         pendingContestId: contest.id,
-      },
-    });
-
+      };
+      await this.userRepo.save(user);
+    } else {
+      // =====================================================
+      // Create User
+      // =====================================================
+      user = await this.userRepo.createUser({
+        email,
+        password: hashedPassword,
+        role: UserRole.PARTICIPANT,
+        status: UserStatus.PENDING,
+        form_template_id: template.id,
+        isSelfRegistered: true,
+        firstName,
+        lastName,
+        fullName,
+        phone,
+        countryId,
+        avatarUrl: avatarUrl || undefined,
+        participant_profile_data: {
+          pendingContestId: contest.id,
+        },
+      });
+    }
   }
   const formDataWithUrls = await this.convertKeysToUrls(processedFormData);
 
@@ -376,8 +396,17 @@ phone = phone.trim();
             contest_id: pendingContestId,
             user_id: user.id,
           },
+          withDeleted: true,
         });
-        if (!existingParticipant) {
+        if (existingParticipant) {
+          if (existingParticipant.deleted_at) {
+            await this.participantEntityRepo.restore(existingParticipant.id);
+            existingParticipant.deleted_at = null as any;
+            existingParticipant.submission_id = profile.submission_id;
+            existingParticipant.status = "approved";
+            await this.participantEntityRepo.save(existingParticipant);
+          }
+        } else {
           await this.participantEntityRepo.save(
             this.participantEntityRepo.create({
               contest_id: pendingContestId,
