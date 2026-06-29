@@ -1,4 +1,4 @@
-import { UserRole, Entry } from "@libs/entities";
+import { UserRole, Entry, UserStatus } from "@libs/entities";
 import { ParticipantProfileRepository, ParticipantRepository, UserRepository, EntryRepository } from "@libs/repositories";
 import { FormSubmissionRepository } from "@libs/repositories";
 import { FormTemplateRepository } from "@libs/repositories";
@@ -119,19 +119,23 @@ export class ParticipantService {
   const fields = this.flattenFields(template.schema?.fields || []);
   const participant = this.extractParticipantData(fields, answers);
 
+  let existingUser = null;
+  let existingParticipant = null;
+
   if (participant.email) {
-    const existingUser = await this.userRepo.findByEmail(participant.email);
+    existingUser = await this.userRepo.findByEmail(participant.email);
     if (existingUser) {
       if (existingUser.role !== UserRole.PARTICIPANT) {
         throw new BadRequestError("User already exists with a different role!");
       }
-      const existingParticipant = await this.repo.findOne({
+      existingParticipant = await this.repo.findOne({
         where: {
           contest_id: contest_id,
           user_id: existingUser.id,
         },
+        withDeleted: true,
       });
-      if (existingParticipant) {
+      if (existingParticipant && !existingParticipant.deleted_at) {
         throw new BadRequestError("Participant already joined this contest");
       }
     }
@@ -143,6 +147,14 @@ export class ParticipantService {
   const submission = await this.submissionRepo.save(
     this.submissionRepo.create(template, answers),
   );
+
+  // Restore the user if it was soft-deleted
+  if (existingUser && existingUser.deleted_at) {
+    await this.userRepo.restore(existingUser.id);
+    existingUser.deleted_at = null as any;
+    existingUser.status = UserStatus.ACTIVE;
+    await this.userRepo.save(existingUser);
+  }
 
   const user = await this.createOrUpdateParticipantUser(
     participant,
@@ -156,14 +168,23 @@ export class ParticipantService {
     participant,
   );
 
-  const savedParticipant = await this.repo.save(
-    this.repo.create({
-      contest_id,
-      submission_id: submission.id,
-      user_id: user.id,
-      status: "approved",
-    }),
-  );
+  let savedParticipant;
+  if (existingParticipant && existingParticipant.deleted_at) {
+    await this.repo.restore(existingParticipant.id);
+    existingParticipant.deleted_at = null as any;
+    existingParticipant.submission_id = submission.id;
+    existingParticipant.status = "approved";
+    savedParticipant = await this.repo.save(existingParticipant);
+  } else {
+    savedParticipant = await this.repo.save(
+      this.repo.create({
+        contest_id,
+        submission_id: submission.id,
+        user_id: user.id,
+        status: "approved",
+      }),
+    );
+  }
 
   // Send registration_successful email notification
   const participantName = participant.fullName
