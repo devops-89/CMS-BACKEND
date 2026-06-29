@@ -192,7 +192,15 @@ async getContestOverview(id: string, userId?: string) {
     if (payload.end_date)                updateData.end_date = new Date(payload.end_date);
     if (payload.entry_level_template_id) updateData.entry_level_template_id = payload.entry_level_template_id;
     if (payload.user_level_template_id)  updateData.user_level_template_id = payload.user_level_template_id;
-    if (payload.status)                  updateData.status = payload.status;
+
+    const now = new Date();
+    if (end <= now) {
+      updateData.status = "Offline";
+    } else if (start <= now && end >= now) {
+      updateData.status = "Published";
+    } else if (payload.status) {
+      updateData.status = payload.status;
+    }
 
     if (payload.available_countries) {
       for (const countryId of payload.available_countries) {
