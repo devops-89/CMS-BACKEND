@@ -226,6 +226,10 @@ phone = phone.trim();
     }
     user.countryId = countryId || user.countryId;
     user.form_template_id = template.id;
+    user.participant_profile_data = {
+      ...(user.participant_profile_data || {}),
+      pendingContestId: contest.id,
+    };
     await this.userRepo.save(user);
   } else {
     // =====================================================
@@ -250,6 +254,9 @@ phone = phone.trim();
       phone,
       countryId,
       avatarUrl: avatarUrl || undefined,
+      participant_profile_data: {
+        pendingContestId: contest.id,
+      },
     });
 
   }
@@ -288,18 +295,7 @@ phone = phone.trim();
     await this.participantRepo.save(existingProfile);
   }
 
-  // =====================================================
-  // Create Participant Record
-  // =====================================================
-
-  await this.participantEntityRepo.save(
-    this.participantEntityRepo.create({
-      contest_id: contest.id,
-      submission_id: submission.id,
-      user_id: user.id,
-     status:"approved"
-    }),
-  );
+  // Note: Participant record is created after OTP verification.
 
   // =====================================================
   // Generate OTP
@@ -369,6 +365,36 @@ phone = phone.trim();
 
     // 6. Mark OTP as used
     await this.otpRepo.markUsed(record.id);
+
+    // Check and create participant registration record if there is a pending registration
+    const pendingContestId = user.participant_profile_data?.pendingContestId;
+    if (pendingContestId) {
+      const profile = await this.participantRepo.findByUserId(user.id);
+      if (profile && profile.submission_id) {
+        const existingParticipant = await this.participantEntityRepo.findOne({
+          where: {
+            contest_id: pendingContestId,
+            user_id: user.id,
+          },
+        });
+        if (!existingParticipant) {
+          await this.participantEntityRepo.save(
+            this.participantEntityRepo.create({
+              contest_id: pendingContestId,
+              submission_id: profile.submission_id,
+              user_id: user.id,
+              status: "approved",
+            })
+          );
+        }
+      }
+
+      // Clean up the pendingContestId metadata
+      const profileData = { ...(user.participant_profile_data || {}) };
+      delete profileData.pendingContestId;
+      user.participant_profile_data = profileData;
+      await this.userRepo.save(user);
+    }
 
     // 7. Update user status to ACTIVE
     const updatedUser = await this.userRepo.updateUserStatus(user.id, UserStatus.ACTIVE);
