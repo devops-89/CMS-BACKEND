@@ -206,6 +206,10 @@ phone = phone.trim();
       throw new ConflictError("User already exists with this emailId!");
     }
 
+    if (existingUser.status === UserStatus.ACTIVE) {
+      throw new ConflictError("Email already registered");
+    }
+
     const existingParticipant = await this.participantEntityRepo.findOne({
       where: {
         contest_id: contest.id,
@@ -364,6 +368,10 @@ phone = phone.trim();
     const user = await this.userRepo.findByEmail(email);
     if (!user) {
       throw new NotFoundError("User not found");
+    }
+
+    if (user.status === UserStatus.ACTIVE) {
+      throw new BadRequestError("User is already active");
     }
 
     // 3. Fetch the latest OTP for this user
@@ -628,34 +636,63 @@ phone = phone.trim();
 
     // Check if user already exists
     const existingUser = await this.userRepo.findByEmail(email);
+
+    let user;
     if (existingUser) {
-      throw new ConflictError("User already exists with this emailId!");
+      if (existingUser.deleted_at) {
+        await this.userRepo.restore(existingUser.id);
+        existingUser.deleted_at = null as any;
+      } else if (existingUser.status === UserStatus.ACTIVE) {
+        throw new ConflictError("Email already registered");
+      }
+
+      // Update details for PENDING or restored user
+      let firstName = "";
+      let lastName = "";
+      const name = fullName.trim();
+      if (name) {
+        const parts = name.split(/\s+/);
+        firstName = parts[0] || "";
+        lastName = parts.slice(1).join(" ") || "";
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      existingUser.firstName = firstName;
+      existingUser.lastName = lastName;
+      existingUser.fullName = name;
+      existingUser.password = hashedPassword;
+      existingUser.role = UserRole.PUBLIC;
+      existingUser.status = UserStatus.PENDING;
+
+      await this.userRepo.save(existingUser);
+      user = existingUser;
+    } else {
+      // Split fullName into firstName and lastName
+      let firstName = "";
+      let lastName = "";
+      const name = fullName.trim();
+      if (name) {
+        const parts = name.split(/\s+/);
+        firstName = parts[0] || "";
+        lastName = parts.slice(1).join(" ") || "";
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      // Create user with PUBLIC role and PENDING status
+      user = await this.userRepo.createUser({
+        email,
+        password: hashedPassword,
+        role: UserRole.PUBLIC,
+        status: UserStatus.PENDING,
+        isSelfRegistered: true,
+        firstName,
+        lastName,
+        fullName: name,
+      });
     }
-
-    // Split fullName into firstName and lastName
-    let firstName = "";
-    let lastName = "";
-    const name = fullName.trim();
-    if (name) {
-      const parts = name.split(/\s+/);
-      firstName = parts[0] || "";
-      lastName = parts.slice(1).join(" ") || "";
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Create user with PUBLIC role and PENDING status
-    const user = await this.userRepo.createUser({
-      email,
-      password: hashedPassword,
-      role: UserRole.PUBLIC,
-      status: UserStatus.PENDING,
-      isSelfRegistered: true,
-      firstName,
-      lastName,
-      fullName: name,
-    });
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -667,7 +704,7 @@ phone = phone.trim();
     await this.otpRepo.createOtp(user.id, hashedOtp, expires);
 
     // Send OTP to email
-    await this.notificationService.sendOtp(email, otp, firstName || "User");
+    await this.notificationService.sendOtp(email, otp, user.firstName || "User");
 
     return user;
   }

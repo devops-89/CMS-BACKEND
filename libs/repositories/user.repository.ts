@@ -179,4 +179,21 @@ export class UserRepository {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  async cleanupPendingUsers(days: number = 7) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const pendingUsers = await this.repo.createQueryBuilder("user")
+      .where("user.status = :status", { status: UserStatus.PENDING })
+      .andWhere("user.created_at < :cutoffDate", { cutoffDate })
+      .getMany();
+
+    if (pendingUsers.length > 0) {
+      const ids = pendingUsers.map(u => u.id);
+      await this.repo.softDelete(ids);
+      return ids;
+    }
+    return [];
+  }
 }

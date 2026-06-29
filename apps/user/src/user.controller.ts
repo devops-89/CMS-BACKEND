@@ -39,6 +39,24 @@ export class UserController {
   private s3Service = new S3Service();
   private roleRepo = new RoleRepository();
 
+  constructor() {
+    console.log("[Scheduler] User cleanup scheduler initialized to run every 12 hours.");
+    // Run the cron job every 12 hours (12 * 60 * 60 * 1000 ms)
+    setInterval(async () => {
+      try {
+        console.log(`[Scheduler] Running scheduled cleanup for unverified PENDING users at: ${new Date().toISOString()}`);
+        const deletedIds = await this.userRepo.cleanupPendingUsers(7); // Cleanup PENDING users older than 7 days
+        if (deletedIds.length > 0) {
+          console.log(`[Scheduler] Soft-deleted ${deletedIds.length} pending users: ${deletedIds.join(", ")}`);
+        } else {
+          console.log("[Scheduler] No pending users found for cleanup.");
+        }
+      } catch (err: any) {
+        console.error("[Scheduler] Error in background pending users cleanup:", err.message);
+      }
+    }, 12 * 60 * 60 * 1000);
+  }
+
 
 
   // update the profile pic adding
