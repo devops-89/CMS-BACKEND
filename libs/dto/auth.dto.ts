@@ -13,9 +13,7 @@ export const registerSchema = z.object({
     .min(6, "Password must be at least 6 characters")
     .max(20, "Password cannot exceed 20 characters"),
 
-  role: z.nativeEnum(UserRole, {
-    message: "Invalid user role selected",
-  }),
+  role: z.string().min(1, "Role is required"),
 
   firstName: z
   .string()

@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from "typeorm";
+import { Role } from "./role.entity";
 
 export enum PERMISSION_ROLE {
   SUPER_ADMIN = "SUPER_ADMIN",
@@ -18,14 +21,23 @@ export enum PERMISSION_ROLE {
 @Entity("permissions")
 @Index(["role", "module"], { unique: true })
 export class Permission {
-  @PrimaryGeneratedColumn()
-  id!: number;
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
   @Column({
     type: "enum",
     enum: PERMISSION_ROLE,
+    nullable: true,
+    default: PERMISSION_ROLE.PUBLIC,
   })
-  role!: PERMISSION_ROLE;
+  role?: PERMISSION_ROLE | null;
+
+  @ManyToOne(() => Role, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "role_id" })
+  roleEntity?: Role;
+
+  @Column({ type: "uuid", nullable: true })
+  role_id?: string;
 
   @Column({
     type: "varchar",

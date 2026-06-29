@@ -19,3 +19,4 @@ export * from "./judge-evaluation-history.entity";
 export * from "./country.entity";
 export * from "./email-template.entity";
 export * from "./permission.entity";
+export * from "./role.entity";

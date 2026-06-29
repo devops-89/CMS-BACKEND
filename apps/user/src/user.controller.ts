@@ -6,6 +6,7 @@ import {
   AdminProfileRepository,
   ParticipantRepository,
   FormSubmissionRepository,
+  RoleRepository,
 } from "@libs/repositories";
 
 import {
@@ -21,6 +22,7 @@ import {
   createParticipantDto,
   createPublicUserDto,
   verifyPublicUserDto,
+  createRoleDto,
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
 import { UserService } from "./user.service";
@@ -35,6 +37,7 @@ export class UserController {
   private submissionRepo = new FormSubmissionRepository();
   private userService = new UserService();
   private s3Service = new S3Service();
+  private roleRepo = new RoleRepository();
 
 
 
@@ -721,4 +724,42 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
       });
     }
   };
+
+  async createRole(req: Request<{}, {}, createRoleDto>, res: Response) {
+    try {
+      const { name } = req.body;
+      const existing = await this.roleRepo.findByName(name);
+      if (existing) {
+        return res.status(409).json({
+          message: `Role with name "${existing.name}" already exists!`,
+        });
+      }
+
+      const role = await this.roleRepo.createRole(name);
+      return res.status(201).json({
+        message: "Role Created Successfully.",
+        data: role,
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Failed to create role!",
+        error: error.message,
+      });
+    }
+  }
+
+  async getAllRoles(req: Request, res: Response) {
+    try {
+      const roles = await this.roleRepo.findAll();
+      return res.status(200).json({
+        message: "Roles fetched successfully.",
+        data: roles,
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Failed to fetch roles!",
+        error: error.message,
+      });
+    }
+  }
 }

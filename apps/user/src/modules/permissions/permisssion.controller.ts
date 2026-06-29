@@ -32,7 +32,7 @@ export class PermissionController {
 
   getOne = async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const id = Number(req.params.id);
+      const id = req.params.id
       const permission = await this.service.getPermissionById(id);
       return res.status(200).json({
         message: "Permission fetched successfully",
@@ -45,7 +45,7 @@ export class PermissionController {
 
   update = async (req: Request<{ id: string }, {}, updatePermissionDto>, res: Response) => {
     try {
-      const id = Number(req.params.id);
+      const id = req.params.id;
       const permission = await this.service.updatePermission(id, req.body);
       return res.status(200).json({
         message: "Permission updated successfully",
@@ -70,7 +70,7 @@ export class PermissionController {
 
   delete = async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const id = Number(req.params.id);
+      const id = req.params.id;
       await this.service.deletePermission(id);
       return res.status(200).json({
         message: "Permission deleted successfully",

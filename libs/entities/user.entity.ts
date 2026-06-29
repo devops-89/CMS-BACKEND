@@ -8,6 +8,7 @@ import { EntryAssignment } from "./entry-assignment.entity";
 import { FormTemplate } from "./form-template.entity";
 import { Contest } from "./contest.entity";
 import { Country } from "./country.entity";
+import { Role } from "./role.entity";
 
 export enum UserRole {
   ADMIN = "admin",
@@ -70,8 +71,16 @@ country?: Country;
   @Column({
     type: "enum",
     enum: UserRole,
+    default: UserRole.PARTICIPANT,
   })
   role!: UserRole;
+
+  @ManyToOne(() => Role, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "role_id" })
+  roleEntity?: Role;
+
+  @Column({ type: "uuid", nullable: true })
+  role_id?: string;
 
   @Column({
     type: "enum",

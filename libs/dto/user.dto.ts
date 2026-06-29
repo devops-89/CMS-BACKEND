@@ -93,3 +93,9 @@ export const verifyPublicUserSchema = z.object({
 });
 
 export type verifyPublicUserDto = z.infer<typeof verifyPublicUserSchema>;
+
+export const createRoleSchema = z.object({
+  name: z.string().min(1, "Role name is required"),
+});
+
+export type createRoleDto = z.infer<typeof createRoleSchema>;

@@ -37,6 +37,7 @@ export class UserRepository {
   async findByEmail(email: string) {
     return this.repo
       .createQueryBuilder("user")
+      .leftJoinAndSelect("user.roleEntity", "roleEntity")
       .withDeleted()
       .addSelect("user.password")
       .where("user.email = :email", { email })
@@ -45,14 +46,14 @@ export class UserRepository {
 
   // get user detail by id
   async getUserById(id: string) {
-    const user = await this.repo.findOne({ where: { id } });
+    const user = await this.repo.findOne({ where: { id }, relations: ["roleEntity"] });
 
     if (!user) return null;
 
     if (user.role === "admin") {
       return this.repo.findOne({
         where: { id },
-        relations: ["adminProfile", "createdContests"],
+        relations: ["adminProfile", "createdContests", "roleEntity"],
       });
     }
 
@@ -64,9 +65,10 @@ export class UserRepository {
           "judgeProfile.contestAssignments",
           "judgeProfile.contestAssignments.contest",
           "entryAssignments",
-          "entryAssignments.entry",
+          "entryAssignments.judge",
           "entryAssignments.contest",
           "createdContests",
+          "roleEntity",
         ],
       });
     }
@@ -84,6 +86,7 @@ export class UserRepository {
           "participants.contest",
           "participants.entries",
           "createdContests",
+          "roleEntity",
         ],
       });
     }

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { AppDataSource } from "@libs/database/data-source";
-import { UserRepository } from "@libs/repositories";
+import { UserRepository, RoleRepository } from "@libs/repositories";
 import { AdminProfileRepository } from "@libs/repositories";
 import { JudgeProfileRepository } from "@libs/repositories";
 import { ParticipantProfileRepository } from "@libs/repositories";
@@ -36,6 +36,7 @@ export class AuthController {
   private otpRepo = new OtpsRepository();
 
   private notificationService=new NotificationService();
+  private roleRepo = new RoleRepository();
 
   /* -------------------------------- REGISTER -------------------------------- */
 
@@ -53,11 +54,16 @@ export class AuthController {
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
+      const roleEntity = await this.roleRepo.ensureRoleExists(role);
+      const isStandardUserRole = Object.values(UserRole).includes(role as UserRole);
+      const legacyRoleValue = isStandardUserRole ? (role as UserRole) : UserRole.PUBLIC;
+
       //  FIX: don't send null, only send values if present
       const user = await this.userRepo.createUser({
         email,
         password: hashedPassword,
-        role,
+        role: legacyRoleValue,
+        roleEntity: roleEntity,
         status: UserStatus.ACTIVE,
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
@@ -289,7 +295,7 @@ export class AuthController {
 
       const accessToken = generateAccessToken({
         userId: user.id,
-        role: user.role,
+        role: user.roleEntity?.name || user.role,
       });
 
       const refreshToken = generateRefreshToken({

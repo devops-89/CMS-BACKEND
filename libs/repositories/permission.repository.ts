@@ -9,19 +9,33 @@ export class PermissionRepository {
     this.repo = AppDataSource.getRepository(Permission);
   }
 
-  async findById(id: number) {
-    return this.repo.findOne({ where: { id } });
+  async findById(id: string) {
+    return this.repo.findOne({ where: { id }, relations: ["roleEntity"] });
   }
 
-  async findAll(role?: PERMISSION_ROLE) {
+  async findByRoleIdAndModule(roleId: string, module: string) {
+    return this.repo.createQueryBuilder("permission")
+      .where("permission.role_id = :roleId", { roleId })
+      .andWhere("LOWER(permission.module) = :module", { module: module.toLowerCase() })
+      .getOne();
+  }
+
+  async findAll(role?: string) {
     if (role) {
-      return this.repo.find({ where: { role } });
+      return this.repo.createQueryBuilder("permission")
+        .leftJoinAndSelect("permission.roleEntity", "roleEntity")
+        .where("(LOWER(CAST(permission.role AS VARCHAR)) = :role OR LOWER(roleEntity.name) = :role)", { role: role.toLowerCase() })
+        .getMany();
     }
-    return this.repo.find();
+    return this.repo.find({ relations: ["roleEntity"] });
   }
 
-  async findByRoleAndModule(role: PERMISSION_ROLE, module: string) {
-    return this.repo.findOne({ where: { role, module } });
+  async findByRoleAndModule(role: string, module: string) {
+    return this.repo.createQueryBuilder("permission")
+      .leftJoinAndSelect("permission.roleEntity", "roleEntity")
+      .where("(LOWER(CAST(permission.role AS VARCHAR)) = :role OR LOWER(roleEntity.name) = :role)", { role: role.toLowerCase() })
+      .andWhere("LOWER(permission.module) = :module", { module: module.toLowerCase() })
+      .getOne();
   }
 
   async createPermission(data: Partial<Permission>) {
@@ -29,7 +43,7 @@ export class PermissionRepository {
     return this.repo.save(permission);
   }
 
-  async updatePermission(id: number, data: Partial<Permission>) {
+  async updatePermission(id: string, data: Partial<Permission>) {
     await this.repo.update(id, data);
     return this.findById(id);
   }
@@ -38,7 +52,7 @@ export class PermissionRepository {
     return this.repo.save(permission);
   }
 
-  async deletePermission(id: number): Promise<boolean> {
+  async deletePermission(id: string): Promise<boolean> {
     const result = await this.repo.delete(id);
     return result.affected !== 0;
   }

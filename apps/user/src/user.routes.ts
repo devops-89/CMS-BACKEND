@@ -6,7 +6,7 @@ import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
 import multer from "multer";
 
-import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema, createPublicUserSchema, verifyPublicUserSchema } from "@libs/dto/user.dto";
+import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema, createPublicUserSchema, verifyPublicUserSchema, createRoleSchema } from "@libs/dto/user.dto";
 
 const router=Router();
 const upload = multer();
@@ -90,6 +90,12 @@ router.get("/entries", authenticate, controller.listEntries.bind(controller));
 // get users , filter by role
 router.get("/all",authenticate,authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE), validate(getUsersQuerySchema,"query"),controller.getAllUsers.bind(controller));
 
+// create role
+router.post("/roles", authenticate, authorize(UserRole.ADMIN), validate(createRoleSchema, "body"), controller.createRole.bind(controller));
+
+// get all roles
+router.get("/roles", authenticate, authorize(UserRole.ADMIN), controller.getAllRoles.bind(controller));
+
 // get user by id
 router.get("/:id", authenticate,authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE), validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
 
@@ -119,5 +125,7 @@ router.post("/create-public", validate(createPublicUserSchema, "body"), controll
 
 // verify public user account with OTP (no authentication required)
 router.post("/verify-public-otp", validate(verifyPublicUserSchema, "body"), controller.verifyPublicUser.bind(controller));
+
+
 
 export default router;
