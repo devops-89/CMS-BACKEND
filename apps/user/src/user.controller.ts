@@ -8,7 +8,7 @@ import {
   FormSubmissionRepository,
   RoleRepository,
 } from "@libs/repositories";
-import { Role, Permission } from "@libs/entities";
+import { Role, Permission, UserStatus } from "@libs/entities";
 import { AppDataSource } from "@libs/database/data-source";
 
 import {
@@ -120,6 +120,21 @@ export class UserController {
         }
 
         await this.participantEntityRepo.updateStatus(existingParticipant.id, status as any);
+
+        // If the participant status is updated to 'banned', check if they are banned in all of their registered contests
+        if (status && status.toLowerCase() === "banned") {
+          const allParticipants = existing.participants || [];
+          const areAllBanned = allParticipants.every(p => {
+            if (p.contest_id === contestId) {
+              return true; // The current one is being banned now
+            }
+            return p.status && p.status.toLowerCase() === "banned";
+          });
+
+          if (areAllBanned && allParticipants.length > 0) {
+            await this.userRepo.updateUserStatus(id, UserStatus.BANNED);
+          }
+        }
 
         return res.status(200).json({
           message: "Participant status updated successfully",
