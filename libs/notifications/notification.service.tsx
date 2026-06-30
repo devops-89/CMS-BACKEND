@@ -17,6 +17,39 @@ export class NotificationService{
         )
     }
 
+    async sendWelcomeEmail(email: string, fullName: string, roleName: string, password?: string) {
+        await this.email.sendHtml(
+            email,
+            "Welcome to Launchpad - Account Created",
+            `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                <h2 style="color: #4A90E2; text-align: center;">Welcome to Launchpad, ${fullName}!</h2>
+                <p>Hello ${fullName},</p>
+                <p>Your account has been created successfully by an Administrator.</p>
+                <p><strong>Account Details:</strong></p>
+                <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Role:</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${roleName}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Email:</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${email}</td>
+                    </tr>
+                    ${password ? `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Password:</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;"><code>${password}</code></td>
+                    </tr>
+                    ` : ""}
+                </table>
+                <p>You can now log in using your email address and the password set for you.</p>
+                <p style="font-size: 0.9em; color: #777; text-align: center; margin-top: 25px;">
+                    This is an automated message, please do not reply directly to this email.
+                </p>
+            </div>`
+        );
+    }
+
     /**
      * Send an email notification using a DB-stored email template.
      * Replaces {{variable}} placeholders in both subject and body.

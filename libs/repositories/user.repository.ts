@@ -139,8 +139,8 @@ export class UserRepository {
 
 
   // get all users, and filter also for role
-  async getUsers(filters: { role?: UserRole; status?: UserStatus; page?: number; limit?: number; search?: string }) {
-    const { role, status, page = 1, limit = 10, search } = filters;
+  async getUsers(filters: { role?: UserRole; status?: UserStatus; roleUsers?: boolean; page?: number; limit?: number; search?: string }) {
+    const { role, status, roleUsers, page = 1, limit = 10, search } = filters;
 
     const qb = this.repo.createQueryBuilder("user")
       .leftJoinAndSelect("user.adminProfile", "adminProfile")
@@ -152,7 +152,8 @@ export class UserRepository {
       .leftJoinAndSelect("user.participants", "participants")
       .leftJoinAndSelect("participants.contest", "participantContest")
       .leftJoinAndSelect("user.createdContests", "createdContests")
-      .leftJoinAndSelect("user.country", "country");
+      .leftJoinAndSelect("user.country", "country")
+      .leftJoinAndSelect("user.roleEntity", "roleEntity");
 
     if (role) {
       qb.andWhere("user.role = :role", { role });
@@ -160,6 +161,12 @@ export class UserRepository {
 
     if (status) {
       qb.andWhere("user.status = :status", { status });
+    }
+
+    if (roleUsers === true) {
+      qb.andWhere("user.role_id IS NOT NULL");
+    } else {
+      qb.andWhere("user.role_id IS NULL");
     }
 
     if (search) {

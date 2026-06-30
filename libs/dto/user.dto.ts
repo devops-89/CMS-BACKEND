@@ -14,6 +14,7 @@ export const getUserByIdSchema=z.object({
 export const getUsersQuerySchema=z.object({
     role:z.nativeEnum(UserRole).optional(),
     status:z.nativeEnum(UserStatus).optional(),
+    roleUsers:z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
     page:z.coerce.number().default(1),
     limit:z.coerce.number().default(10),
     search:z.string().optional()
@@ -98,5 +99,13 @@ export type verifyPublicUserDto = z.infer<typeof verifyPublicUserSchema>;
 export const createRoleSchema = z.object({
   name: z.string().min(1, "Role name is required"),
 });
+
+export const createUserByRoleSchema = z.object({
+  fullName: z.string().min(1, "Full name is required"),
+  email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
+export type createUserByRoleDto = z.infer<typeof createUserByRoleSchema>;
 
 export type createRoleDto = z.infer<typeof createRoleSchema>;

@@ -71,9 +71,9 @@ country?: Country;
   @Column({
     type: "enum",
     enum: UserRole,
-    default: UserRole.PARTICIPANT,
+    nullable: true,
   })
-  role!: UserRole;
+  role?: UserRole | null;
 
   @ManyToOne(() => Role, { nullable: true, onDelete: "SET NULL" })
   @JoinColumn({ name: "role_id" })

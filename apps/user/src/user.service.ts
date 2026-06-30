@@ -8,12 +8,15 @@ import {
   ContestRepository,
   FormSubmissionRepository,
   ParticipantRepository,
+  AdminProfileRepository,
+  JudgeProfileRepository,
+  RoleRepository,
 } from "@libs/repositories";
 import { UserRole, UserStatus, Entry } from "@libs/entities";
 import { AppDataSource } from "@libs/database/data-source";
 import { NotificationService } from "@libs/notifications/notification.service";
 import { ConflictError, BadRequestError, NotFoundError } from "@libs/utils/errors.util";
-import { createParticipantDto, verifyParticipantDto, createPublicUserDto, verifyPublicUserDto } from "@libs/dto/user.dto";
+import { createParticipantDto, verifyParticipantDto, createPublicUserDto, verifyPublicUserDto, createUserByRoleDto } from "@libs/dto/user.dto";
 import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
 import { generateAccessToken, generateRefreshToken } from "@libs/utils/jwt.util";
 import { S3Service } from "@libs/s3";
@@ -21,6 +24,9 @@ import { S3Service } from "@libs/s3";
 export class UserService {
   private userRepo = new UserRepository();
   private participantRepo = new ParticipantProfileRepository();
+  private adminRepo = new AdminProfileRepository();
+  private judgeRepo = new JudgeProfileRepository();
+  private roleRepo = new RoleRepository();
   private otpRepo = new OtpsRepository();
   private formTemplateRepo = new FormTemplateRepository();
   private countryRepo = new CountryRepository();
@@ -843,5 +849,94 @@ phone = phone.trim();
       hasNextPage,
       hasPrevPage,
     };
+  }
+
+  async createUserByRoleService(roleId: string, payload: createUserByRoleDto) {
+    const { fullName, email, password } = payload;
+
+    // Check if user already exists
+    const existingUser = await this.userRepo.findByEmail(email);
+    if (existingUser) {
+      if (existingUser.deleted_at) {
+        await this.userRepo.restore(existingUser.id);
+        existingUser.deleted_at = null as any;
+      } else {
+        throw new ConflictError("Email already registered");
+      }
+    }
+
+    // Find role
+    const roleEntity = await this.roleRepo.findById(roleId);
+    if (!roleEntity) {
+      throw new NotFoundError("Role not found");
+    }
+
+    const roleName = roleEntity.name;
+    const roleNameLower = roleName.toLowerCase();
+    const isStandardUserRole = Object.values(UserRole).includes(roleNameLower as UserRole);
+    const legacyRoleValue = isStandardUserRole ? (roleNameLower as UserRole) : null;
+
+    // Split fullName
+    let firstName = "";
+    let lastName = "";
+    const name = fullName.trim();
+    if (name) {
+      const parts = name.split(/\s+/);
+      firstName = parts[0] || "";
+      lastName = parts.slice(1).join(" ") || "";
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    let user;
+    if (existingUser) {
+      existingUser.firstName = firstName;
+      existingUser.lastName = lastName;
+      existingUser.fullName = name;
+      existingUser.password = hashedPassword;
+      existingUser.role = legacyRoleValue;
+      existingUser.roleEntity = roleEntity;
+      existingUser.status = UserStatus.ACTIVE;
+
+      await this.userRepo.save(existingUser);
+      user = existingUser;
+    } else {
+      user = await this.userRepo.createUser({
+        email,
+        password: hashedPassword,
+        role: legacyRoleValue,
+        roleEntity: roleEntity,
+        status: UserStatus.ACTIVE,
+        firstName,
+        lastName,
+        fullName: name,
+      });
+    }
+
+    // Create profile based on standard role
+    if (legacyRoleValue === UserRole.ADMIN) {
+      const existingProfile = await this.adminRepo.findByUserId(user.id);
+      if (!existingProfile) {
+        await this.adminRepo.createProfile({ user });
+      }
+    } else if (legacyRoleValue === UserRole.JUDGE) {
+      const existingProfile = await this.judgeRepo.findByUserId(user.id);
+      if (!existingProfile) {
+        await this.judgeRepo.createProfile({ user });
+      }
+    } else if (legacyRoleValue === UserRole.PARTICIPANT) {
+      const existingProfile = await this.participantRepo.findByUserId(user.id);
+      if (!existingProfile) {
+        await this.participantRepo.createProfile({ user });
+      }
+    }
+
+    // Send Welcome Email Notification
+    await this.notificationService.sendWelcomeEmail(email, name, roleName, password);
+
+    user.roleEntity = roleEntity;
+    user.role_id = roleEntity.id;
+
+    return user;
   }
 }

@@ -23,6 +23,7 @@ import {
   createPublicUserDto,
   verifyPublicUserDto,
   createRoleDto,
+  createUserByRoleDto,
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
 import { UserService } from "./user.service";
@@ -148,11 +149,12 @@ export class UserController {
   res: Response
 ) {
   try {
-    const { role, status, page, limit, search } = req.query as getUsersQueryDto;
+    const { role, status, roleUsers, page, limit, search } = req.query as getUsersQueryDto;
 
     const result = await this.userRepo.getUsers({
       role,
       status,
+      roleUsers,
       page,
       limit,
       search
@@ -777,6 +779,29 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
     } catch (error: any) {
       return res.status(500).json({
         message: "Failed to fetch roles!",
+        error: error.message,
+      });
+    }
+  }
+
+  async createUserByRole(req: Request<{ roleId: string }, {}, createUserByRoleDto>, res: Response) {
+    try {
+      const { roleId } = req.params;
+      const user = await this.userService.createUserByRoleService(roleId, req.body);
+      return res.status(201).json({
+        message: "User created successfully and notified.",
+        data: {
+          userId: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          roleId: user.role_id || user.roleEntity?.id || roleId,
+          roleEntity: user.roleEntity,
+          status: user.status,
+        },
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 500).json({
+        message: "Failed to create user with role!",
         error: error.message,
       });
     }

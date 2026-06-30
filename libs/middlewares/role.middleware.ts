@@ -15,14 +15,14 @@ export const authorize=(...roles:string[])=>{
     const userRole = req.user.role;
 
     // 1. If user's role is in the list of allowed roles, allow it
-    if(roles.includes(userRole)){
+    if(userRole && roles.includes(userRole)){
         return next();
     }
 
     // 2. Otherwise check database permissions dynamically
     try {
       const moduleName = getModuleName(req.originalUrl || req.url);
-      if (moduleName) {
+      if (moduleName && userRole) {
         const permission = await AppDataSource.getRepository(Permission)
           .createQueryBuilder("permission")
           .where("LOWER(CAST(permission.role AS VARCHAR)) = :role", { role: userRole.toLowerCase() })

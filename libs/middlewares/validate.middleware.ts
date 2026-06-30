@@ -4,7 +4,6 @@ import { ZodTypeAny } from "zod";
 export const validate =
   (schema: ZodTypeAny, source: "body" | "query" | "params" = "body") =>
   (req: Request, res: Response, next: NextFunction) => {
-
     const result = schema.safeParse(req[source]);
 
     if (!result.success) {
@@ -22,9 +21,22 @@ export const validate =
       });
     }
 
-    // only overwrite body safely
     if (source === "body") {
       req.body = result.data;
+    } else if (source === "query") {
+      Object.defineProperty(req, "query", {
+        value: result.data,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    } else if (source === "params") {
+      Object.defineProperty(req, "params", {
+        value: result.data,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
     }
 
     next();
