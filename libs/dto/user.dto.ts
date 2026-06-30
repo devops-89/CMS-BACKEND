@@ -13,7 +13,7 @@ export const getUserByIdSchema=z.object({
 
 export const getUsersQuerySchema=z.object({
     role:z.nativeEnum(UserRole).optional(),
-    status:z.nativeEnum(UserStatus).optional(),
+    status:z.string().optional(),
     roleUsers:z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
     page:z.coerce.number().default(1),
     limit:z.coerce.number().default(10),
@@ -122,7 +122,7 @@ export type updateRoleUserDto = z.infer<typeof updateRoleUserSchema>;
 
 export const exportUsersQuerySchema = z.object({
   role: z.nativeEnum(UserRole).optional(),
-  status: z.nativeEnum(UserStatus).optional(),
+  status: z.string().optional(),
   roleUsers: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
   search: z.string().optional()
 });

@@ -139,7 +139,7 @@ export class UserRepository {
 
 
   // get all users, and filter also for role
-  async getUsers(filters: { role?: UserRole; status?: UserStatus; roleUsers?: boolean; page?: number; limit?: number; search?: string }) {
+  async getUsers(filters: { role?: UserRole; status?: string; roleUsers?: boolean; page?: number; limit?: number; search?: string }) {
     const { role, status, roleUsers, page = 1, limit = 10, search } = filters;
 
     const qb = this.repo.createQueryBuilder("user")
@@ -160,7 +160,11 @@ export class UserRepository {
     }
 
     if (status) {
-      qb.andWhere("user.status = :status", { status });
+      if (role === UserRole.PARTICIPANT) {
+        qb.andWhere("participants.status = :status", { status: status.toLowerCase() });
+      } else {
+        qb.andWhere("user.status = :status", { status });
+      }
     }
 
     if (roleUsers === true) {
@@ -191,7 +195,7 @@ export class UserRepository {
     };
   }
 
-  async getUsersForExport(filters: { role?: UserRole; status?: UserStatus; roleUsers?: boolean; search?: string }) {
+  async getUsersForExport(filters: { role?: UserRole; status?: string; roleUsers?: boolean; search?: string }) {
     const { role, status, roleUsers, search } = filters;
 
     const qb = this.repo.createQueryBuilder("user")
@@ -205,7 +209,11 @@ export class UserRepository {
     }
 
     if (status) {
-      qb.andWhere("user.status = :status", { status });
+      if (role === UserRole.PARTICIPANT) {
+        qb.andWhere("participants.status = :status", { status: status.toLowerCase() });
+      } else {
+        qb.andWhere("user.status = :status", { status });
+      }
     }
 
     if (roleUsers === true) {
