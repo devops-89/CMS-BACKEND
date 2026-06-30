@@ -529,6 +529,51 @@ export class AuthController {
       });
     }
   }
+
+  /* ------------------------------- RESEND OTP ------------------------------ */
+
+  async resendOtp(req: Request<{}, {}, ForgotPasswordDto>, res: Response) {
+    try {
+      const { email } = req.body;
+
+      const user = await this.userRepo.findByEmail(email);
+
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      //  Delete old OTP
+      await this.otpRepo.deleteUserOtps(user.id);
+
+      //  Generate OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      //  Hash OTP
+      const hashedOtp = await bcrypt.hash(otp, 10);
+
+      //  Expiry (5 min)
+      const expires = new Date();
+      expires.setMinutes(expires.getMinutes() + 5);
+
+      //  Save OTP
+      await this.otpRepo.createOtp(user.id, hashedOtp, expires);
+
+      //  Send via email
+      await this.notificationService.sendOtp(user.email || "", otp, user.firstName || "");
+
+      return res.json({
+        message: "New OTP sent successfully",
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Failed to resend OTP",
+        error: error.message,
+      });
+    }
+  }
+
   /* ------------------------------ HEALTH CHECK ----------------------------- */
 
   async health(req: Request, res: Response) {

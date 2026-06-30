@@ -60,6 +60,13 @@ router.post(
   controller.resetPassword.bind(controller)
 );
 
+// Resend OTP
+router.post(
+  "/resend-otp",
+  validate(forgotPasswordSchema),
+  controller.resendOtp.bind(controller)
+);
+
 router.get("/health",controller.health.bind(controller));
 
 export default router;
