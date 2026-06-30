@@ -1,7 +1,7 @@
 import {Response, NextFunction} from "express";
 import { AuthRequest } from "./auth.middleware";
 import { AppDataSource } from "@libs/database/data-source";
-import { Permission } from "@libs/entities";
+import { Permission, UserRole } from "@libs/entities";
 
 export const authorize=(...roles:string[])=>{
    return async (req:AuthRequest, res:Response, next:NextFunction)=>{
@@ -13,6 +13,14 @@ export const authorize=(...roles:string[])=>{
     }
          
     const userRole = req.user.role;
+
+    // Check if the user's role is one of the standard UserRole values
+    const isStandardRole = userRole && Object.values(UserRole).includes(userRole.toLowerCase() as UserRole);
+
+    // If it is NOT a standard role, allow access directly!
+    if (!isStandardRole) {
+        return next();
+    }
 
     // 1. If user's role is in the list of allowed roles, allow it
     if(userRole && roles.includes(userRole)){

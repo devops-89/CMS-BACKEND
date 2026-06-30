@@ -338,6 +338,8 @@ export class AuthController {
             id: user.id,
             email: user.email,
             role: user.role,
+            roleId: user.role_id || user.roleEntity?.id,
+            roleEntity: user.roleEntity,
             contestId,
             contestCount,
             contests,
