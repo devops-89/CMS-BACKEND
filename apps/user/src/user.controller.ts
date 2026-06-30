@@ -27,6 +27,7 @@ import {
   createRoleDto,
   createUserByRoleDto,
   updateRoleUserDto,
+  exportUsersQueryDto,
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
 import { UserService } from "./user.service";
@@ -859,5 +860,64 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
         error: error.message,
       });
     }
+  }
+
+  async exportUsers(req: Request<{}, {}, {}, exportUsersQueryDto>, res: Response) {
+    try {
+      const { role, status, roleUsers, search } = req.query;
+
+      const users = await this.userRepo.getUsersForExport({
+        role,
+        status,
+        roleUsers,
+        search
+      });
+
+      const csvData = this.convertToCSV(users);
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename=users-${Date.now()}.csv`);
+      return res.status(200).send(csvData);
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Failed to export users!",
+        error: error.message,
+      });
+    }
+  }
+
+  private convertToCSV(data: any[]): string {
+    const headers = [
+      "User ID",
+      "Full Name",
+      "Email",
+      "Role (Enum)",
+      "Role ID",
+      "Role (Custom)",
+      "Status",
+      "Phone",
+      "Country",
+      "Created At"
+    ];
+
+    const rows = data.map(u => {
+      return [
+        u.id || "",
+        u.fullName || "",
+        u.email || "",
+        u.role || "",
+        u.role_id || "",
+        u.roleEntity?.name || "",
+        u.status || "",
+        u.phone || "",
+        u.country?.name || "",
+        u.created_at ? new Date(u.created_at).toISOString() : ""
+      ].map(field => {
+        const stringVal = String(field).replace(/"/g, '""');
+        return `"${stringVal}"`;
+      }).join(",");
+    });
+
+    return [headers.join(","), ...rows].join("\n");
   }
 }

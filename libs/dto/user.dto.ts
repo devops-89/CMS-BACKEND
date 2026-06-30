@@ -119,3 +119,12 @@ export const updateRoleUserSchema = z.object({
 });
 
 export type updateRoleUserDto = z.infer<typeof updateRoleUserSchema>;
+
+export const exportUsersQuerySchema = z.object({
+  role: z.nativeEnum(UserRole).optional(),
+  status: z.nativeEnum(UserStatus).optional(),
+  roleUsers: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
+  search: z.string().optional()
+});
+
+export type exportUsersQueryDto = z.infer<typeof exportUsersQuerySchema>;

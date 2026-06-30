@@ -191,6 +191,41 @@ export class UserRepository {
     };
   }
 
+  async getUsersForExport(filters: { role?: UserRole; status?: UserStatus; roleUsers?: boolean; search?: string }) {
+    const { role, status, roleUsers, search } = filters;
+
+    const qb = this.repo.createQueryBuilder("user")
+      .leftJoinAndSelect("user.roleEntity", "roleEntity")
+      .leftJoinAndSelect("user.country", "country")
+      .leftJoinAndSelect("user.participants", "participants")
+      .leftJoinAndSelect("participants.contest", "participantContest");
+
+    if (role) {
+      qb.andWhere("user.role = :role", { role });
+    }
+
+    if (status) {
+      qb.andWhere("user.status = :status", { status });
+    }
+
+    if (roleUsers === true) {
+      qb.andWhere("user.role_id IS NOT NULL");
+    } else {
+      qb.andWhere("user.role_id IS NULL");
+    }
+
+    if (search) {
+      qb.andWhere(
+        "(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.fullName ILIKE :search OR user.email ILIKE :search OR (user.role = :participantRole AND participantContest.name ILIKE :search))",
+        { search: `%${search}%`, participantRole: UserRole.PARTICIPANT }
+      );
+    }
+
+    qb.orderBy("user.created_at", "DESC");
+
+    return qb.getMany();
+  }
+
   async cleanupPendingUsers(days: number = 7) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);

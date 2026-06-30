@@ -6,7 +6,7 @@ import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
 import multer from "multer";
 
-import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema, createPublicUserSchema, verifyPublicUserSchema, createRoleSchema, createUserByRoleSchema, updateRoleUserSchema } from "@libs/dto/user.dto";
+import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema, createPublicUserSchema, verifyPublicUserSchema, createRoleSchema, createUserByRoleSchema, updateRoleUserSchema, exportUsersQuerySchema } from "@libs/dto/user.dto";
 
 const router=Router();
 const upload = multer();
@@ -95,6 +95,9 @@ router.post("/roles", authenticate, authorize(UserRole.ADMIN), validate(createRo
 
 // get all roles
 router.get("/roles", authenticate, authorize(UserRole.ADMIN), controller.getAllRoles.bind(controller));
+
+// export all users to CSV (accessible by ADMIN)
+router.get("/export", authenticate, authorize(UserRole.ADMIN), validate(exportUsersQuerySchema, "query"), controller.exportUsers.bind(controller));
 
 // get user by id
 router.get("/:id", authenticate,authorize(UserRole.ADMIN,UserRole.PARTICIPANT,UserRole.JUDGE), validate(getUserByIdSchema, "params"),controller.getUserById.bind(controller) );
