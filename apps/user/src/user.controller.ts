@@ -24,6 +24,7 @@ import {
   verifyPublicUserDto,
   createRoleDto,
   createUserByRoleDto,
+  updateRoleUserDto,
 } from "@libs/dto/user.dto";
 import { AuthRequest } from "@libs/middlewares/auth.middleware";
 import { UserService } from "./user.service";
@@ -802,6 +803,29 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
     } catch (error: any) {
       return res.status(error.statusCode || 500).json({
         message: "Failed to create user with role!",
+        error: error.message,
+      });
+    }
+  }
+
+  async updateRoleUser(req: Request<{ id: string }, {}, updateRoleUserDto>, res: Response) {
+    try {
+      const { id } = req.params;
+      const user = await this.userService.updateRoleUserService(id, req.body);
+      return res.status(200).json({
+        message: "User updated successfully.",
+        data: {
+          userId: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          roleId: user.role_id,
+          roleEntity: user.roleEntity,
+          status: user.status,
+        },
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 500).json({
+        message: "Failed to update user with role!",
         error: error.message,
       });
     }

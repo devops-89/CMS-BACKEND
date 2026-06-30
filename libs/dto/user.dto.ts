@@ -109,3 +109,13 @@ export const createUserByRoleSchema = z.object({
 export type createUserByRoleDto = z.infer<typeof createUserByRoleSchema>;
 
 export type createRoleDto = z.infer<typeof createRoleSchema>;
+
+export const updateRoleUserSchema = z.object({
+  fullName: z.string().optional(),
+  email: z.string().email("Please enter a valid email address").optional(),
+  password: z.string().min(6, "Password must be at least 6 characters long").optional(),
+  roleId: z.string().uuid("Invalid Role ID").optional(),
+  status: z.nativeEnum(UserStatus).optional(),
+});
+
+export type updateRoleUserDto = z.infer<typeof updateRoleUserSchema>;

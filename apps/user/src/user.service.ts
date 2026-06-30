@@ -16,7 +16,7 @@ import { UserRole, UserStatus, Entry } from "@libs/entities";
 import { AppDataSource } from "@libs/database/data-source";
 import { NotificationService } from "@libs/notifications/notification.service";
 import { ConflictError, BadRequestError, NotFoundError } from "@libs/utils/errors.util";
-import { createParticipantDto, verifyParticipantDto, createPublicUserDto, verifyPublicUserDto, createUserByRoleDto } from "@libs/dto/user.dto";
+import { createParticipantDto, verifyParticipantDto, createPublicUserDto, verifyPublicUserDto, createUserByRoleDto, updateRoleUserDto } from "@libs/dto/user.dto";
 import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
 import { generateAccessToken, generateRefreshToken } from "@libs/utils/jwt.util";
 import { S3Service } from "@libs/s3";
@@ -936,6 +936,88 @@ phone = phone.trim();
 
     user.roleEntity = roleEntity;
     user.role_id = roleEntity.id;
+
+    return user;
+  }
+
+  async updateRoleUserService(userId: string, payload: updateRoleUserDto) {
+    const user = await this.userRepo.getUserById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    if (!user.role_id) {
+      throw new BadRequestError("This user does not have a role assigned and cannot be updated via this endpoint");
+    }
+
+    const { fullName, email, password, roleId, status } = payload;
+    const updates: { roleName?: string; email?: string; password?: string; status?: string } = {};
+
+    if (email && email !== user.email) {
+      const existingUser = await this.userRepo.findByEmail(email);
+      if (existingUser && existingUser.id !== userId) {
+        throw new ConflictError("Email already registered");
+      }
+      user.email = email;
+      updates.email = email;
+    }
+
+    if (fullName !== undefined) {
+      let firstName = "";
+      let lastName = "";
+      const name = fullName.trim();
+      if (name) {
+        const parts = name.split(/\s+/);
+        firstName = parts[0] || "";
+        lastName = parts.slice(1).join(" ") || "";
+      }
+      user.firstName = firstName;
+      user.lastName = lastName;
+      user.fullName = name;
+    }
+
+    if (password) {
+      user.password = await bcrypt.hash(password, 12);
+      updates.password = password;
+    }
+
+    if (roleId) {
+      const roleEntity = await this.roleRepo.findById(roleId);
+      if (!roleEntity) {
+        throw new NotFoundError("Role not found");
+      }
+      user.roleEntity = roleEntity;
+      user.role_id = roleEntity.id;
+      updates.roleName = roleEntity.name;
+
+      const roleNameLower = roleEntity.name.toLowerCase();
+      const isStandardUserRole = Object.values(UserRole).includes(roleNameLower as UserRole);
+      const legacyRoleValue = isStandardUserRole ? (roleNameLower as UserRole) : null;
+      user.role = legacyRoleValue;
+
+      // Profile creation if not existing
+      if (legacyRoleValue === UserRole.ADMIN) {
+        const existingProfile = await this.adminRepo.findByUserId(user.id);
+        if (!existingProfile) await this.adminRepo.createProfile({ user });
+      } else if (legacyRoleValue === UserRole.JUDGE) {
+        const existingProfile = await this.judgeRepo.findByUserId(user.id);
+        if (!existingProfile) await this.judgeRepo.createProfile({ user });
+      } else if (legacyRoleValue === UserRole.PARTICIPANT) {
+        const existingProfile = await this.participantRepo.findByUserId(user.id);
+        if (!existingProfile) await this.participantRepo.createProfile({ user });
+      }
+    }
+
+    if (status) {
+      user.status = status;
+      updates.status = status;
+    }
+
+    await this.userRepo.save(user);
+
+    if (Object.keys(updates).length > 0) {
+      await this.notificationService.sendAccountUpdatedEmail(user.email || "", user.fullName || "", updates);
+    }
 
     return user;
   }

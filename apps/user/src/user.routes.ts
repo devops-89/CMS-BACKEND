@@ -6,7 +6,7 @@ import { authorize } from "@libs/middlewares/role.middleware";
 import { UserRole } from "@libs/entities";
 import multer from "multer";
 
-import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema, createPublicUserSchema, verifyPublicUserSchema, createRoleSchema, createUserByRoleSchema } from "@libs/dto/user.dto";
+import { deleteUserByIdSchema, getUserByIdSchema, getUsersQuerySchema,  updateAvatarSchema, updateUserStatusSchema, updateUserSchema, verifyParticipantSchema, createParticipantSchema, createPublicUserSchema, verifyPublicUserSchema, createRoleSchema, createUserByRoleSchema, updateRoleUserSchema } from "@libs/dto/user.dto";
 
 const router=Router();
 const upload = multer();
@@ -128,6 +128,9 @@ router.post("/verify-public-otp", validate(verifyPublicUserSchema, "body"), cont
 
 // create user by role id (accessible by ADMIN)
 router.post("/create-by-role/:roleId", authenticate, authorize(UserRole.ADMIN), validate(createUserByRoleSchema, "body"), controller.createUserByRole.bind(controller));
+
+// update user with role by id (accessible by ADMIN)
+router.put("/update-role-user/:id", authenticate, authorize(UserRole.ADMIN), validate(updateRoleUserSchema, "body"), controller.updateRoleUser.bind(controller));
 
 
 export default router;
