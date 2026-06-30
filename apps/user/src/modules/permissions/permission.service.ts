@@ -1,8 +1,9 @@
 import { PermissionRepository } from "@libs/repositories/permission.repository";
 import { RoleRepository } from "@libs/repositories/role.repository";
 import { createPermissionDto, updatePermissionDto, bulkSavePermissionsDto, bulkUpdatePermissionsDto } from "@libs/dto/permission.dto";
-import { PERMISSION_ROLE, Permission, Role } from "@libs/entities";
+import { PERMISSION_ROLE, Permission, Role, User } from "@libs/entities";
 import { NotFoundError, ConflictError, BadRequestError } from "@libs/utils/errors.util";
+import { AppDataSource } from "@libs/database/data-source";
 
 export class PermissionService {
   private repo = new PermissionRepository();
@@ -58,10 +59,54 @@ export class PermissionService {
 
   async getAllPermissions(role?: string, roleId?: string) {
     const permissions = await this.repo.findAll(role, roleId);
-    return permissions.map(p => ({
-      ...p,
-      roleId: p.roleEntity?.id || p.role_id,
-    }));
+
+    // Fetch user counts grouped by custom role_id
+    const userRepo = AppDataSource.getRepository(User);
+    const customRoleCounts = await userRepo.createQueryBuilder("user")
+      .select("user.role_id", "roleId")
+      .addSelect("COUNT(*)", "count")
+      .where("user.role_id IS NOT NULL")
+      .groupBy("user.role_id")
+      .getRawMany();
+
+    // Fetch user counts grouped by standard role (where role_id is null)
+    const standardRoleCounts = await userRepo.createQueryBuilder("user")
+      .select("user.role", "role")
+      .addSelect("COUNT(*)", "count")
+      .where("user.role_id IS NULL")
+      .groupBy("user.role")
+      .getRawMany();
+
+    const customCountsMap = new Map<string, number>();
+    customRoleCounts.forEach(r => {
+      if (r.roleId) {
+        customCountsMap.set(r.roleId, parseInt(r.count, 10));
+      }
+    });
+
+    const standardCountsMap = new Map<string, number>();
+    standardRoleCounts.forEach(r => {
+      if (r.role) {
+        standardCountsMap.set(r.role.toLowerCase(), parseInt(r.count, 10));
+      }
+    });
+
+    return permissions.map(p => {
+      const rId = p.roleEntity?.id || p.role_id;
+      let userCount = 0;
+
+      if (rId) {
+        userCount = customCountsMap.get(rId) || 0;
+      } else if (p.role) {
+        userCount = standardCountsMap.get(p.role.toLowerCase()) || 0;
+      }
+
+      return {
+        ...p,
+        roleId: rId,
+        userCount,
+      };
+    });
   }
 
   async getPermissionById(id: string) {
