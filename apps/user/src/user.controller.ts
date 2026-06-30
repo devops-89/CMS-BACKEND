@@ -148,10 +148,11 @@ export class UserController {
   res: Response
 ) {
   try {
-    const { role, page, limit, search } = req.query as getUsersQueryDto;
+    const { role, status, page, limit, search } = req.query as getUsersQueryDto;
 
     const result = await this.userRepo.getUsers({
       role,
+      status,
       page,
       limit,
       search

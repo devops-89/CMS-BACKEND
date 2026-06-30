@@ -139,8 +139,8 @@ export class UserRepository {
 
 
   // get all users, and filter also for role
-  async getUsers(filters: { role?: UserRole; page?: number; limit?: number; search?: string }) {
-    const { role, page = 1, limit = 10, search } = filters;
+  async getUsers(filters: { role?: UserRole; status?: UserStatus; page?: number; limit?: number; search?: string }) {
+    const { role, status, page = 1, limit = 10, search } = filters;
 
     const qb = this.repo.createQueryBuilder("user")
       .leftJoinAndSelect("user.adminProfile", "adminProfile")
@@ -156,6 +156,10 @@ export class UserRepository {
 
     if (role) {
       qb.andWhere("user.role = :role", { role });
+    }
+
+    if (status) {
+      qb.andWhere("user.status = :status", { status });
     }
 
     if (search) {
