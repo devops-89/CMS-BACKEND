@@ -132,5 +132,8 @@ router.post("/create-by-role/:roleId", authenticate, authorize(UserRole.ADMIN), 
 // update user with role by id (accessible by ADMIN)
 router.put("/update-role-user/:id", authenticate, authorize(UserRole.ADMIN), validate(updateRoleUserSchema, "body"), controller.updateRoleUser.bind(controller));
 
+// delete role and its permissions by id (accessible by ADMIN)
+router.delete("/roles/:roleId", authenticate, authorize(UserRole.ADMIN), controller.deleteRole.bind(controller));
+
 
 export default router;

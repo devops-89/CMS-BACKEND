@@ -8,6 +8,8 @@ import {
   FormSubmissionRepository,
   RoleRepository,
 } from "@libs/repositories";
+import { Role, Permission } from "@libs/entities";
+import { AppDataSource } from "@libs/database/data-source";
 
 import {
     deleteUserByIdDto,
@@ -826,6 +828,34 @@ async verifyParticipant(req: Request<{}, {}, verifyParticipantDto>, res: Respons
     } catch (error: any) {
       return res.status(error.statusCode || 500).json({
         message: "Failed to update user with role!",
+        error: error.message,
+      });
+    }
+  }
+
+  async deleteRole(req: Request<{ roleId: string }>, res: Response) {
+    try {
+      const { roleId } = req.params;
+
+      const role = await this.roleRepo.findById(roleId);
+      if (!role) {
+        return res.status(404).json({
+          message: "Role not found!",
+        });
+      }
+
+      // Soft delete the role
+      await AppDataSource.getRepository(Role).softDelete(roleId);
+
+      // Soft delete the permissions associated with this role
+      await AppDataSource.getRepository(Permission).softDelete({ role_id: roleId });
+
+      return res.status(200).json({
+        message: "Role and its associated permissions deleted successfully.",
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Failed to delete role!",
         error: error.message,
       });
     }
