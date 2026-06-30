@@ -10,6 +10,7 @@ import {
   bulkSavePermissionsSchema,
   getPermissionByIdSchema,
   getPermissionsQuerySchema,
+  bulkUpdatePermissionsSchema,
 } from "@libs/dto/permission.dto";
 
 const router = Router();
@@ -49,6 +50,15 @@ router.post(
   authorize(UserRole.ADMIN),
   validate(bulkSavePermissionsSchema, "body"),
   controller.bulkSave.bind(controller)
+);
+
+// Bulk update permissions (Admin only)
+router.put(
+  "/bulk",
+  authenticate,
+  authorize(UserRole.ADMIN),
+  validate(bulkUpdatePermissionsSchema, "body"),
+  controller.bulkUpdate.bind(controller)
 );
 
 // Update a permission by ID (Admin only)

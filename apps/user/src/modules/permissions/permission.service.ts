@@ -1,6 +1,6 @@
 import { PermissionRepository } from "@libs/repositories/permission.repository";
 import { RoleRepository } from "@libs/repositories/role.repository";
-import { createPermissionDto, updatePermissionDto, bulkSavePermissionsDto } from "@libs/dto/permission.dto";
+import { createPermissionDto, updatePermissionDto, bulkSavePermissionsDto, bulkUpdatePermissionsDto } from "@libs/dto/permission.dto";
 import { PERMISSION_ROLE, Permission, Role } from "@libs/entities";
 import { NotFoundError, ConflictError, BadRequestError } from "@libs/utils/errors.util";
 
@@ -56,8 +56,8 @@ export class PermissionService {
     };
   }
 
-  async getAllPermissions(role?: string) {
-    const permissions = await this.repo.findAll(role);
+  async getAllPermissions(role?: string, roleId?: string) {
+    const permissions = await this.repo.findAll(role, roleId);
     return permissions.map(p => ({
       ...p,
       roleId: p.roleEntity?.id || p.role_id,
@@ -174,6 +174,16 @@ export class PermissionService {
       }
     }
     return saved;
+  }
+
+  async bulkUpdatePermissions(payload: bulkUpdatePermissionsDto) {
+    const updated: any[] = [];
+    for (const item of payload) {
+      const { id, ...rest } = item;
+      const updatedPermission = await this.updatePermission(id, rest);
+      updated.push(updatedPermission);
+    }
+    return updated;
   }
 
   async deletePermission(id: string) {

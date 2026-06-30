@@ -55,6 +55,22 @@ export type getPermissionByIdDto = z.infer<typeof getPermissionByIdSchema>;
 // For fetching permissions filtered by optional role
 export const getPermissionsQuerySchema = z.object({
   role: z.string().optional(),
+  roleId: z.string().optional(),
 });
 
 export type getPermissionsQueryDto = z.infer<typeof getPermissionsQuerySchema>;
+
+export const bulkUpdatePermissionsSchema = z.array(
+  z.object({
+    id: z.string().uuid("Invalid Permission ID"),
+    role: z.string().optional(),
+    roleId: z.string().optional(),
+    module: z.string().max(100).optional(),
+    canView: z.boolean().optional(),
+    canCreate: z.boolean().optional(),
+    canEdit: z.boolean().optional(),
+    canDelete: z.boolean().optional(),
+  })
+);
+
+export type bulkUpdatePermissionsDto = z.infer<typeof bulkUpdatePermissionsSchema>;

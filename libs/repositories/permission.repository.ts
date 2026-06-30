@@ -20,14 +20,17 @@ export class PermissionRepository {
       .getOne();
   }
 
-  async findAll(role?: string) {
-    if (role) {
-      return this.repo.createQueryBuilder("permission")
-        .leftJoinAndSelect("permission.roleEntity", "roleEntity")
-        .where("(LOWER(CAST(permission.role AS VARCHAR)) = :role OR LOWER(roleEntity.name) = :role)", { role: role.toLowerCase() })
-        .getMany();
+  async findAll(role?: string, roleId?: string) {
+    const qb = this.repo.createQueryBuilder("permission")
+      .leftJoinAndSelect("permission.roleEntity", "roleEntity");
+
+    if (roleId) {
+      qb.andWhere("permission.role_id = :roleId", { roleId });
+    } else if (role) {
+      qb.andWhere("(LOWER(CAST(permission.role AS VARCHAR)) = :role OR LOWER(roleEntity.name) = :role)", { role: role.toLowerCase() });
     }
-    return this.repo.find({ relations: ["roleEntity"] });
+
+    return qb.getMany();
   }
 
   async findByRoleAndModule(role: string, module: string) {
