@@ -216,9 +216,9 @@ export class UserService {
         throw new ConflictError("User already exists with this emailId!");
       }
 
-      if (existingUser.status === UserStatus.ACTIVE) {
-        throw new ConflictError("Email already registered");
-      }
+      // if (existingUser.status === UserStatus.ACTIVE) {
+      //   throw new ConflictError("Email already registered");
+      // }
 
       const existingParticipant = await this.participantEntityRepo.findOne({
         where: {
