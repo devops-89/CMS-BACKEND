@@ -380,9 +380,9 @@ export class UserService {
       throw new NotFoundError("User not found");
     }
 
-    if (user.status === UserStatus.ACTIVE) {
-      throw new BadRequestError("User is already active");
-    }
+    // if (user.status === UserStatus.ACTIVE) {
+    //   throw new BadRequestError("User is already active");
+    // }
 
     // 3. Fetch the latest OTP for this user
     const record = await this.otpRepo.findLatestOtp(user.id);
