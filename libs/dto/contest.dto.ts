@@ -10,12 +10,12 @@ export const createContestSchema = z.object({
     message: "Invalid end_date format",
   }),
   available_regions: z.array(z.string()).optional(),
-available_countries: z
-  .array(
-    z.string().uuid("Each available country must be a valid UUID")
-  )
-  .min(1, "Available countries is required"),
-    status: z.enum(["Draft", "Published", "Offline"]).optional().default("Draft"),
+  available_countries: z
+    .array(
+      z.string().uuid("Each available country must be a valid UUID")
+    )
+    .min(1, "Available countries is required"),
+  status: z.enum(["Draft", "Published", "Offline"]).optional().default("Draft"),
   form_template_id: z.string().uuid("Invalid form template ID").optional(),
   entry_level_template_id: z.string().uuid("Invalid entry level template ID").optional(),
   user_level_template_id: z.string().uuid("Invalid user level template ID").optional(),
@@ -44,6 +44,9 @@ export const updateContestSchema = z.object({
   form_template_id: z.string().uuid("Invalid form template ID").optional(),
   entry_level_template_id: z.string().uuid("Invalid entry level template ID").optional(),
   user_level_template_id: z.string().uuid("Invalid user level template ID").optional(),
+  public_visibility: z.boolean().optional(),
+  auto_moderate_entries: z.boolean().optional(),
+  allow_new_registrations: z.boolean().optional()
 }).refine((data) => {
   if (data.start_date && data.end_date) {
     const start = new Date(data.start_date);

@@ -10,7 +10,7 @@ export class ContestService {
   private judgeAssignedVotingPeriodRepo = new JudgeAssignedVotingPeriodRepository();
   private countryRepo = new CountryRepository();
 
-   async createContestService(
+  async createContestService(
     payload: {
       name: string;
       description?: string;
@@ -92,57 +92,57 @@ export class ContestService {
     return contest;
   }
 
-async getContestOverview(id: string, userId?: string) {
-  const contest = await this.repo.findById(id);
-  if (!contest) throw new NotFoundError("Contest not found");
+  async getContestOverview(id: string, userId?: string) {
+    const contest = await this.repo.findById(id);
+    if (!contest) throw new NotFoundError("Contest not found");
 
-  if (userId) {
-    const isParticipant = await this.participantRepo.findOne({
-      where: { contest_id: id, user_id: userId }
+    if (userId) {
+      const isParticipant = await this.participantRepo.findOne({
+        where: { contest_id: id, user_id: userId }
+      });
+      if (!isParticipant) {
+        throw new NotFoundError("Contest not found");
+      }
+    }
+
+    const stats = await this.repo.getStats(id);
+
+    //  participants
+    const participants = await this.participantRepo.findByContest(id);
+
+    const cleanedParticipants = participants.map((p) => {
+      if (p.submission?.data) {
+        delete p.submission.data.password;
+        delete p.submission.data.confirm_password;
+      }
+      return p;
     });
-    if (!isParticipant) {
-      throw new NotFoundError("Contest not found");
-    }
+
+    //  entries
+    const entries = await this.entryRepo.findByContest(id);
+
+    const cleanedEntries = entries.map((e) => {
+      // optional cleanup
+      return e;
+    });
+
+    return {
+      ...contest,
+
+      // stats
+      total_entries: parseInt(stats?.total_entries || "0"),
+      needs_moderation: parseInt(stats?.needs_moderation || "0"),
+      total_votes: parseInt(stats?.total_votes || "0"),
+
+      // participants
+      participants: cleanedParticipants,
+      total_participants: cleanedParticipants.length,
+
+      // NEW
+      entries: cleanedEntries,
+      total_entries_list: cleanedEntries.length,
+    };
   }
-
-  const stats = await this.repo.getStats(id);
-
-  //  participants
-  const participants = await this.participantRepo.findByContest(id);
-
-  const cleanedParticipants = participants.map((p) => {
-    if (p.submission?.data) {
-      delete p.submission.data.password;
-      delete p.submission.data.confirm_password;
-    }
-    return p;
-  });
-
-  //  entries
-  const entries = await this.entryRepo.findByContest(id);
-
-  const cleanedEntries = entries.map((e) => {
-    // optional cleanup
-    return e;
-  });
-
-  return {
-    ...contest,
-
-    // stats
-    total_entries: parseInt(stats?.total_entries || "0"),
-    needs_moderation: parseInt(stats?.needs_moderation || "0"),
-    total_votes: parseInt(stats?.total_votes || "0"),
-
-    // participants
-    participants: cleanedParticipants,
-    total_participants: cleanedParticipants.length,
-
-    // NEW
-    entries: cleanedEntries,
-    total_entries_list: cleanedEntries.length,
-  };
-}
 
 
   async updateContest(
@@ -158,6 +158,9 @@ async getContestOverview(id: string, userId?: string) {
       entry_level_template_id: string;
       user_level_template_id: string;
       status: "Draft" | "Published" | "Offline";
+      allow_new_registrations: boolean;
+      public_visibility: boolean;
+      auto_moderate_entries: boolean;
     }>
   ) {
     const existing = await this.repo.findById(id);
@@ -184,14 +187,17 @@ async getContestOverview(id: string, userId?: string) {
 
     const updateData: Partial<Contest> = {};
 
-    if (payload.name)                    updateData.name = payload.name;
-    if (payload.description)             updateData.description = payload.description;
-    if (payload.available_regions)       updateData.available_regions = payload.available_regions;
-    if (payload.form_template_id)        updateData.form_template_id = payload.form_template_id;
-    if (payload.start_date)              updateData.start_date = new Date(payload.start_date);
-    if (payload.end_date)                updateData.end_date = new Date(payload.end_date);
+    if (payload.name) updateData.name = payload.name;
+    if (payload.description) updateData.description = payload.description;
+    if (payload.available_regions) updateData.available_regions = payload.available_regions;
+    if (payload.form_template_id) updateData.form_template_id = payload.form_template_id;
+    if (payload.start_date) updateData.start_date = new Date(payload.start_date);
+    if (payload.end_date) updateData.end_date = new Date(payload.end_date);
     if (payload.entry_level_template_id) updateData.entry_level_template_id = payload.entry_level_template_id;
-    if (payload.user_level_template_id)  updateData.user_level_template_id = payload.user_level_template_id;
+    if (payload.user_level_template_id) updateData.user_level_template_id = payload.user_level_template_id;
+    if (payload.allow_new_registrations !== undefined) updateData.allow_new_registrations = payload.allow_new_registrations;
+    if (payload.public_visibility !== undefined) updateData.public_visibility = payload.public_visibility;
+    if (payload.auto_moderate_entries !== undefined) updateData.auto_moderate_entries = payload.auto_moderate_entries;
 
     const now = new Date();
     if (end <= now) {
