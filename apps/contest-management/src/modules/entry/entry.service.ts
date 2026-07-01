@@ -8,8 +8,9 @@ import {
 
 import { NotFoundError, InternalServerError, BadRequestError, ForbiddenError, ConflictError } from "@libs/utils/errors.util";
 import { S3Service } from "@libs/s3";
-import { UserRole } from "@libs/entities";
+import { UserRole, Contest, Entry } from "@libs/entities";
 import { NotificationService } from "@libs/notifications/notification.service";
+import { AppDataSource } from "@libs/database/data-source";
 
 export class EntryService {
   private repo = new EntryRepository();
@@ -26,7 +27,7 @@ export class EntryService {
     files: any[] = []
   ): Promise<Record<string, any>> {
     const fields = template.schema?.fields || [];
-    
+
     // First, reconstruct the form data.
     // If body has a "data" object (JSON payload), use it.
     // If "data" is a string (form-data serialized JSON), parse it.
@@ -53,7 +54,7 @@ export class EntryService {
       if (field.type === "file_upload") {
         // Check if there is an uploaded file in multipart form-data
         const uploadedFile = files && files.find((f) => f.fieldname === field.id);
-        
+
         let buffer: Buffer;
         let filename: string;
         let mimeType: string;
@@ -132,7 +133,7 @@ export class EntryService {
         const s3Service = new S3Service();
         const key = `entries/contest-${contest_id}/${field.id}-${Date.now()}-${filename}`;
         const url = await s3Service.uploadFile(key, buffer, mimeType);
-        
+
         data[field.id] = url;
       }
     }
@@ -209,7 +210,7 @@ export class EntryService {
       participant_id,
       submission_id: savedSubmission.id,
       isDraft,
-      status: isDraft ? "draft" : "pending",
+      status: isDraft ? "draft" : (contest.auto_moderate_entries ? "approved" : "pending"),
       draftedAt: isDraft ? new Date() : null,
     });
 
@@ -349,10 +350,10 @@ export class EntryService {
         throw new ForbiddenError("You are not authorized to view this entry");
       }
     }
-    
+
     const template = entry.contest?.entryLevelTemplate;
     const processedEntry = await this.appendDownloadUrlsToEntry(entry, template);
-    
+
     const votingPeriods = await this.votingPeriodRepo.findByContestId(contest_id);
     return {
       ...processedEntry,
@@ -479,6 +480,37 @@ export class EntryService {
     return { message: "Entry deleted successfully" };
   }
 
+  async autoApproveEntries() {
+    const contestRepo = AppDataSource.getRepository(Contest);
+    const entryRepo = AppDataSource.getRepository(Entry);
+
+    // Fetch all contests with auto_moderate_entries = true
+    const contests = await contestRepo.find({
+      where: { auto_moderate_entries: true },
+      select: ["id"],
+    });
+
+    if (contests.length === 0) {
+      return { updatedCount: 0, contestsProcessed: 0 };
+    }
+
+    const contestIds = contests.map((c) => c.id);
+
+    // Bulk update all pending entries in those contests to approved
+    const result = await entryRepo
+      .createQueryBuilder()
+      .update(Entry)
+      .set({ status: "approved" })
+      .where("contest_id IN (:...contestIds)", { contestIds })
+      .andWhere("status = :status", { status: "pending" })
+      .execute();
+
+    return {
+      updatedCount: result.affected ?? 0,
+      contestsProcessed: contests.length,
+    };
+  }
+
   private async sendEntrySubmittedNotification(
     participant_id: string,
     contest_id: string,
@@ -496,11 +528,11 @@ export class EntryService {
       if (userObj && userObj.email) {
         const participantName = userObj.fullName || userObj.firstName || "Participant";
 
-        const entryTitle = 
-          submissionData?.entry_title || 
-          submissionData?.entryTitle || 
-          submissionData?.title || 
-          submissionData?.name || 
+        const entryTitle =
+          submissionData?.entry_title ||
+          submissionData?.entryTitle ||
+          submissionData?.title ||
+          submissionData?.name ||
           "My Entry";
 
         await this.notificationService.sendTemplateNotification(
