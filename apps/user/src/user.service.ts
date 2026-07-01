@@ -794,6 +794,7 @@ export class UserService {
       .leftJoinAndSelect("contest.entryLevelTemplate", "entryLevelTemplate")
       .innerJoinAndSelect("entry.participant", "participant")
       .leftJoinAndSelect("entry.submission", "submission")
+      .andWhere("contest.public_visibility = true")
       .orderBy("entry.created_at", "DESC");
 
     if (status) {
