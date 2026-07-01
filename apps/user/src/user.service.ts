@@ -37,333 +37,337 @@ export class UserService {
   private refreshTokenRepo = new RefreshTokenRepository();
 
 
-async createParticipantService(payload: createParticipantDto, files: any[] = []) {
-  const { contestId, countryId, formData } = payload;
+  async createParticipantService(payload: createParticipantDto, files: any[] = []) {
+    const { contestId, countryId, formData } = payload;
 
-  // =====================================================
-  // Validate Country
-  // =====================================================
-
-  const country = await this.countryRepo.findById(countryId);
-
-  if (!country) {
-    throw new BadRequestError("Invalid country ID");
-  }
-
-  // =====================================================
-  // Fetch Contest
-  // =====================================================
-
-  const contest = await this.contestRepo.findById(contestId);
-
-  if (!contest) {
-    throw new NotFoundError("Contest not found");
-  }
-
-  const now = new Date();
-  if (now < contest.start_date) {
-    throw new BadRequestError("Contest registration has not started yet");
-  }
-  if (now > contest.end_date) {
-    throw new BadRequestError("Contest registration has ended");
-  }
-
-  // =====================================================
-  // Fetch User Level Template
-  // =====================================================
-
-  const template = contest.userLevelTemplate;
-
-  if (!template) {
-    throw new NotFoundError(
-      "User registration form template not configured for this contest",
-    );
-  }
-
-  // Process and upload files if any file_upload fields exist
-  const processedFormData = await this.processFileUploads(contestId, template, formData, files);
-
-  // =====================================================
-  // Extract Dynamic Fields
-  // =====================================================
-
- // =====================================================
-// Extract Dynamic Fields
-// =====================================================
-
-let firstName = "";
-let lastName = "";
-let fullName = "";
-let email = "";
-let password = "";
-let phone = "";
-let dateOfBirthStr = "";
-let avatarUrl = "";
-let grade = "";
-let schoolName = "";
-
-for (const field of template.schema.fields) {
-  const value = processedFormData[field.id];
-
-  if (value === undefined || value === null || value === "") {
-    continue;
-  }
-
-  const normalizedLabel = field.label
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "");
-
-  switch (normalizedLabel) {
-    case "firstname":
-      firstName = String(value).trim();
-      break;
-
-    case "lastname":
-      lastName = String(value).trim();
-      break;
-
-    case "fullname":
-    case "name":
-      fullName = String(value).trim();
-      break;
-
-    case "email":
-    case "mail":
-      email = String(value).trim().toLowerCase();
-      break;
-
-    case "password":
-      password = String(value);
-      break;
-
-    case "phone":
-    case "phonenumber":
-    case "mobile":
-    case "mobilenumber":
-      phone = String(value).trim();
-      break;
-
-    case "dateofbirth":
-    case "dob":
-    case "birthdate":
-      dateOfBirthStr = String(value);
-      break;
-
-    case "avatar":
-    case "profilephoto":
-    case "profileimage":
-      avatarUrl = String(value);
-      break;
-
-    case "grade":
-    case "class":
-      grade = String(value).trim();
-      break;
-
-    case "schoolname":
-    case "school":
-    case "organization":
-    case "institution":
-      schoolName = String(value).trim();
-      break;
-  }
-}
-
-// Split full name if first/last name not provided
-if (fullName && (!firstName || !lastName)) {
-  const parts = fullName.split(/\s+/);
-
-  if (!firstName) {
-    firstName = parts.shift() || "";
-  }
-
-  if (!lastName) {
-    lastName = parts.join(" ");
-  }
-}
-
-firstName = firstName.trim();
-lastName = lastName.trim();
-fullName = fullName || `${firstName} ${lastName}`.trim();
-phone = phone.trim();
-
-  // =====================================================
-  // Validate Required Fields
-  // =====================================================
-
-  if (!email) {
-    throw new BadRequestError("Mail/Email field is required");
-  }
-
-  if (!password) {
-    throw new BadRequestError("Password field is required");
-  }
-
-  // =====================================================
-  // Check Existing User
-  // =====================================================
-
-  const existingUser = await this.userRepo.findByEmail(email);
-
-  let user;
-  if (existingUser && !existingUser.deleted_at) {
-    if (existingUser.role !== UserRole.PARTICIPANT) {
-      throw new ConflictError("User already exists with this emailId!");
-    }
-
-    if (existingUser.status === UserStatus.ACTIVE) {
-      throw new ConflictError("Email already registered");
-    }
-
-    const existingParticipant = await this.participantEntityRepo.findOne({
-      where: {
-        contest_id: contest.id,
-        user_id: existingUser.id,
-      },
-    });
-    if (existingParticipant) {
-      throw new ConflictError("You are already registered for this contest");
-    }
-
-    user = existingUser;
-    user.firstName = firstName || user.firstName;
-    user.lastName = lastName || user.lastName;
-    user.fullName = fullName || user.fullName;
-    user.phone = phone || user.phone;
-    if (avatarUrl) {
-      user.avatarUrl = avatarUrl;
-    }
-    user.countryId = countryId || user.countryId;
-    user.form_template_id = template.id;
-    user.participant_profile_data = {
-      ...(user.participant_profile_data || {}),
-      pendingContestId: contest.id,
-    };
-    await this.userRepo.save(user);
-  } else {
     // =====================================================
-    // Hash Password
+    // Validate Country
     // =====================================================
-    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const country = await this.countryRepo.findById(countryId);
+
+    if (!country) {
+      throw new BadRequestError("Invalid country ID");
+    }
+
+    // =====================================================
+    // Fetch Contest
+    // =====================================================
+
+    const contest = await this.contestRepo.findById(contestId);
+
+    if (!contest) {
+      throw new NotFoundError("Contest not found");
+    }
+
+    if (!contest.allow_new_registrations) {
+      throw new BadRequestError("New registrations are not allowed for this contest");
+    }
+
+    const now = new Date();
+    if (now < contest.start_date) {
+      throw new BadRequestError("Contest registration has not started yet");
+    }
+    if (now > contest.end_date) {
+      throw new BadRequestError("Contest registration has ended");
+    }
+
+    // =====================================================
+    // Fetch User Level Template
+    // =====================================================
+
+    const template = contest.userLevelTemplate;
+
+    if (!template) {
+      throw new NotFoundError(
+        "User registration form template not configured for this contest",
+      );
+    }
+
+    // Process and upload files if any file_upload fields exist
+    const processedFormData = await this.processFileUploads(contestId, template, formData, files);
+
+    // =====================================================
+    // Extract Dynamic Fields
+    // =====================================================
+
+    // =====================================================
+    // Extract Dynamic Fields
+    // =====================================================
+
+    let firstName = "";
+    let lastName = "";
+    let fullName = "";
+    let email = "";
+    let password = "";
+    let phone = "";
+    let dateOfBirthStr = "";
+    let avatarUrl = "";
+    let grade = "";
+    let schoolName = "";
+
+    for (const field of template.schema.fields) {
+      const value = processedFormData[field.id];
+
+      if (value === undefined || value === null || value === "") {
+        continue;
+      }
+
+      const normalizedLabel = field.label
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "");
+
+      switch (normalizedLabel) {
+        case "firstname":
+          firstName = String(value).trim();
+          break;
+
+        case "lastname":
+          lastName = String(value).trim();
+          break;
+
+        case "fullname":
+        case "name":
+          fullName = String(value).trim();
+          break;
+
+        case "email":
+        case "mail":
+          email = String(value).trim().toLowerCase();
+          break;
+
+        case "password":
+          password = String(value);
+          break;
+
+        case "phone":
+        case "phonenumber":
+        case "mobile":
+        case "mobilenumber":
+          phone = String(value).trim();
+          break;
+
+        case "dateofbirth":
+        case "dob":
+        case "birthdate":
+          dateOfBirthStr = String(value);
+          break;
+
+        case "avatar":
+        case "profilephoto":
+        case "profileimage":
+          avatarUrl = String(value);
+          break;
+
+        case "grade":
+        case "class":
+          grade = String(value).trim();
+          break;
+
+        case "schoolname":
+        case "school":
+        case "organization":
+        case "institution":
+          schoolName = String(value).trim();
+          break;
+      }
+    }
+
+    // Split full name if first/last name not provided
+    if (fullName && (!firstName || !lastName)) {
+      const parts = fullName.split(/\s+/);
+
+      if (!firstName) {
+        firstName = parts.shift() || "";
+      }
+
+      if (!lastName) {
+        lastName = parts.join(" ");
+      }
+    }
+
+    firstName = firstName.trim();
+    lastName = lastName.trim();
     fullName = fullName || `${firstName} ${lastName}`.trim();
+    phone = phone.trim();
 
-    if (existingUser && existingUser.deleted_at) {
-      await this.userRepo.restore(existingUser.id);
+    // =====================================================
+    // Validate Required Fields
+    // =====================================================
+
+    if (!email) {
+      throw new BadRequestError("Mail/Email field is required");
+    }
+
+    if (!password) {
+      throw new BadRequestError("Password field is required");
+    }
+
+    // =====================================================
+    // Check Existing User
+    // =====================================================
+
+    const existingUser = await this.userRepo.findByEmail(email);
+
+    let user;
+    if (existingUser && !existingUser.deleted_at) {
+      if (existingUser.role !== UserRole.PARTICIPANT) {
+        throw new ConflictError("User already exists with this emailId!");
+      }
+
+      if (existingUser.status === UserStatus.ACTIVE) {
+        throw new ConflictError("Email already registered");
+      }
+
+      const existingParticipant = await this.participantEntityRepo.findOne({
+        where: {
+          contest_id: contest.id,
+          user_id: existingUser.id,
+        },
+      });
+      if (existingParticipant) {
+        throw new ConflictError("You are already registered for this contest");
+      }
+
       user = existingUser;
-      user.deleted_at = null as any;
-      user.password = hashedPassword;
-      user.role = UserRole.PARTICIPANT;
-      user.status = UserStatus.PENDING;
-      user.firstName = firstName;
-      user.lastName = lastName;
-      user.fullName = fullName;
-      user.phone = phone;
-      user.countryId = countryId;
-      user.avatarUrl = avatarUrl || undefined;
+      user.firstName = firstName || user.firstName;
+      user.lastName = lastName || user.lastName;
+      user.fullName = fullName || user.fullName;
+      user.phone = phone || user.phone;
+      if (avatarUrl) {
+        user.avatarUrl = avatarUrl;
+      }
+      user.countryId = countryId || user.countryId;
       user.form_template_id = template.id;
-      user.isSelfRegistered = true;
       user.participant_profile_data = {
+        ...(user.participant_profile_data || {}),
         pendingContestId: contest.id,
       };
       await this.userRepo.save(user);
     } else {
       // =====================================================
-      // Create User
+      // Hash Password
       // =====================================================
-      user = await this.userRepo.createUser({
-        email,
-        password: hashedPassword,
-        role: UserRole.PARTICIPANT,
-        status: UserStatus.PENDING,
-        form_template_id: template.id,
-        isSelfRegistered: true,
-        firstName,
-        lastName,
-        fullName,
-        phone,
-        countryId,
-        avatarUrl: avatarUrl || undefined,
-        participant_profile_data: {
+      const hashedPassword = await bcrypt.hash(password, 12);
+      fullName = fullName || `${firstName} ${lastName}`.trim();
+
+      if (existingUser && existingUser.deleted_at) {
+        await this.userRepo.restore(existingUser.id);
+        user = existingUser;
+        user.deleted_at = null as any;
+        user.password = hashedPassword;
+        user.role = UserRole.PARTICIPANT;
+        user.status = UserStatus.PENDING;
+        user.firstName = firstName;
+        user.lastName = lastName;
+        user.fullName = fullName;
+        user.phone = phone;
+        user.countryId = countryId;
+        user.avatarUrl = avatarUrl || undefined;
+        user.form_template_id = template.id;
+        user.isSelfRegistered = true;
+        user.participant_profile_data = {
           pendingContestId: contest.id,
-        },
-      });
+        };
+        await this.userRepo.save(user);
+      } else {
+        // =====================================================
+        // Create User
+        // =====================================================
+        user = await this.userRepo.createUser({
+          email,
+          password: hashedPassword,
+          role: UserRole.PARTICIPANT,
+          status: UserStatus.PENDING,
+          form_template_id: template.id,
+          isSelfRegistered: true,
+          firstName,
+          lastName,
+          fullName,
+          phone,
+          countryId,
+          avatarUrl: avatarUrl || undefined,
+          participant_profile_data: {
+            pendingContestId: contest.id,
+          },
+        });
+      }
     }
-  }
-  const formDataWithUrls = await this.convertKeysToUrls(processedFormData);
+    const formDataWithUrls = await this.convertKeysToUrls(processedFormData);
 
-  // =====================================================
-  // Create Form Submission
-  // =====================================================
+    // =====================================================
+    // Create Form Submission
+    // =====================================================
 
-  const submission =
-    await this.submissionRepo.save(
-      this.submissionRepo.create(
-        template,
-        formDataWithUrls,
-      ),
+    const submission =
+      await this.submissionRepo.save(
+        this.submissionRepo.create(
+          template,
+          formDataWithUrls,
+        ),
+      );
+
+    // =====================================================
+    // Create / Update Participant Profile
+    // =====================================================
+    const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
+    const existingProfile = await this.participantRepo.findByUserId(user.id);
+    if (!existingProfile) {
+      await this.participantRepo.createProfile({
+        user,
+        dateOfBirth: dob as Date,
+        grade: grade || undefined,
+        schoolName: schoolName || undefined,
+        submission_id: submission.id,
+      });
+    } else {
+      existingProfile.dateOfBirth = dob || existingProfile.dateOfBirth;
+      existingProfile.grade = grade || existingProfile.grade;
+      existingProfile.schoolName = schoolName || existingProfile.schoolName;
+      existingProfile.submission_id = submission.id;
+      await this.participantRepo.save(existingProfile);
+    }
+
+    // Note: Participant record is created after OTP verification.
+
+    // =====================================================
+    // Generate OTP
+    // =====================================================
+
+    const otp = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
+
+    const hashedOtp = await bcrypt.hash(
+      otp,
+      10,
     );
 
-  // =====================================================
-  // Create / Update Participant Profile
-  // =====================================================
-  const dob = dateOfBirthStr ? new Date(dateOfBirthStr) : null;
-  const existingProfile = await this.participantRepo.findByUserId(user.id);
-  if (!existingProfile) {
-    await this.participantRepo.createProfile({
-      user,
-      dateOfBirth: dob as Date,
-      grade: grade || undefined,
-      schoolName: schoolName || undefined,
-      submission_id: submission.id,
-    });
-  } else {
-    existingProfile.dateOfBirth = dob || existingProfile.dateOfBirth;
-    existingProfile.grade = grade || existingProfile.grade;
-    existingProfile.schoolName = schoolName || existingProfile.schoolName;
-    existingProfile.submission_id = submission.id;
-    await this.participantRepo.save(existingProfile);
+    const expires = new Date();
+
+    expires.setMinutes(
+      expires.getMinutes() + 5,
+    );
+
+    await this.otpRepo.createOtp(
+      user.id,
+      hashedOtp,
+      expires,
+    );
+
+    // =====================================================
+    // Send OTP
+    // =====================================================
+
+    await this.notificationService.sendOtp(
+      email,
+      otp,
+      firstName || "Participant",
+    );
+
+    return user;
   }
-
-  // Note: Participant record is created after OTP verification.
-
-  // =====================================================
-  // Generate OTP
-  // =====================================================
-
-  const otp = Math.floor(
-    100000 + Math.random() * 900000,
-  ).toString();
-
-  const hashedOtp = await bcrypt.hash(
-    otp,
-    10,
-  );
-
-  const expires = new Date();
-
-  expires.setMinutes(
-    expires.getMinutes() + 5,
-  );
-
-  await this.otpRepo.createOtp(
-    user.id,
-    hashedOtp,
-    expires,
-  );
-
-  // =====================================================
-  // Send OTP
-  // =====================================================
-
-  await this.notificationService.sendOtp(
-    email,
-    otp,
-    firstName || "Participant",
-  );
-
-  return user;
-}
 
 
 
@@ -550,7 +554,7 @@ phone = phone.trim();
       if (field.type === "file_upload") {
         // Check if there is an uploaded file in multipart form-data
         const uploadedFile = files && files.find((f) => f.fieldname === `formData[${field.id}]` || f.fieldname === field.id);
-        
+
         let buffer: Buffer;
         let filename: string;
         let mimeType: string;
@@ -629,7 +633,7 @@ phone = phone.trim();
         const s3Service = new S3Service();
         const key = `users/contest-${contest_id}/${field.id}-${Date.now()}-${filename}`;
         const url = await s3Service.uploadFile(key, buffer, mimeType);
-        
+
         data[field.id] = url;
       }
     }

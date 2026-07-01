@@ -24,7 +24,7 @@ export class ParticipantService {
 
   async getAllParticipants(contest_id: string) {
     const contest = await this.contestRepo.findById(contest_id);
-    const template = contest?.user_level_template_id 
+    const template = contest?.user_level_template_id
       ? await this.templateRepo.findById(contest.user_level_template_id)
       : null;
     const entryTemplate = contest?.entry_level_template_id
@@ -84,139 +84,143 @@ export class ParticipantService {
   }
 
 
- async addParticipantByAdminService(
-  contest_id: string,
-  formData: Record<string, any>,
-  files: any[] = []
-) {
-  const contest = await this.getContest(contest_id);
+  async addParticipantByAdminService(
+    contest_id: string,
+    formData: Record<string, any>,
+    files: any[] = []
+  ) {
+    const contest = await this.getContest(contest_id);
 
-  const now = new Date();
-  if (now < contest.start_date) {
-    throw new BadRequestError("Contest registration has not started yet");
-  }
-  if (now > contest.end_date) {
-    throw new BadRequestError("Contest registration has ended");
-  }
+    if (!contest.allow_new_registrations) {
+      throw new BadRequestError("New registrations are not allowed for this contest");
+    }
 
-  const template = await this.getTemplate(contest.user_level_template_id!);
+    const now = new Date();
+    if (now < contest.start_date) {
+      throw new BadRequestError("Contest registration has not started yet");
+    }
+    if (now > contest.end_date) {
+      throw new BadRequestError("Contest registration has ended");
+    }
 
-  // Extract the actual field answers. If nested under a 'data' key, use it.
-  let answers = formData.data && typeof formData.data === "object" && !Array.isArray(formData.data)
-    ? formData.data
-    : formData;
+    const template = await this.getTemplate(contest.user_level_template_id!);
 
-  if (typeof formData.data === "string") {
-    try {
-      answers = JSON.parse(formData.data);
-    } catch {
+    // Extract the actual field answers. If nested under a 'data' key, use it.
+    let answers = formData.data && typeof formData.data === "object" && !Array.isArray(formData.data)
+      ? formData.data
+      : formData;
+
+    if (typeof formData.data === "string") {
+      try {
+        answers = JSON.parse(formData.data);
+      } catch {
+        answers = { ...formData };
+      }
+    } else if (!formData.data) {
       answers = { ...formData };
     }
-  } else if (!formData.data) {
-    answers = { ...formData };
-  }
 
-  const fields = this.flattenFields(template.schema?.fields || []);
-  const participant = this.extractParticipantData(fields, answers);
+    const fields = this.flattenFields(template.schema?.fields || []);
+    const participant = this.extractParticipantData(fields, answers);
 
-  let existingUser = null;
-  let existingParticipant = null;
+    let existingUser = null;
+    let existingParticipant = null;
 
-  if (participant.email) {
-    existingUser = await this.userRepo.findByEmail(participant.email);
-    if (existingUser) {
-      if (existingUser.role !== UserRole.PARTICIPANT) {
-        throw new BadRequestError("User already exists with a different role!");
-      }
-      existingParticipant = await this.repo.findOne({
-        where: {
-          contest_id: contest_id,
-          user_id: existingUser.id,
-        },
-        withDeleted: true,
-      });
-      if (existingParticipant && !existingParticipant.deleted_at) {
-        throw new BadRequestError("Participant already joined this contest");
+    if (participant.email) {
+      existingUser = await this.userRepo.findByEmail(participant.email);
+      if (existingUser) {
+        if (existingUser.role !== UserRole.PARTICIPANT) {
+          throw new BadRequestError("User already exists with a different role!");
+        }
+        existingParticipant = await this.repo.findOne({
+          where: {
+            contest_id: contest_id,
+            user_id: existingUser.id,
+          },
+          withDeleted: true,
+        });
+        if (existingParticipant && !existingParticipant.deleted_at) {
+          throw new BadRequestError("Participant already joined this contest");
+        }
       }
     }
-  }
 
-  // Process and upload files if any file_upload fields exist
-  answers = await this.processFileUploads(contest_id, template, answers, files);
+    // Process and upload files if any file_upload fields exist
+    answers = await this.processFileUploads(contest_id, template, answers, files);
 
-  const submission = await this.submissionRepo.save(
-    this.submissionRepo.create(template, answers),
-  );
+    const submission = await this.submissionRepo.save(
+      this.submissionRepo.create(template, answers),
+    );
 
-  // Restore the user if it was soft-deleted
-  if (existingUser && existingUser.deleted_at) {
-    await this.userRepo.restore(existingUser.id);
-    existingUser.deleted_at = null as any;
-    existingUser.status = UserStatus.ACTIVE;
-    await this.userRepo.save(existingUser);
-  }
+    // Restore the user if it was soft-deleted
+    if (existingUser && existingUser.deleted_at) {
+      await this.userRepo.restore(existingUser.id);
+      existingUser.deleted_at = null as any;
+      existingUser.status = UserStatus.ACTIVE;
+      await this.userRepo.save(existingUser);
+    }
 
-  const user = await this.createOrUpdateParticipantUser(
-    participant,
-    answers,
-    template.id,
-  );
+    const user = await this.createOrUpdateParticipantUser(
+      participant,
+      answers,
+      template.id,
+    );
 
-  await this.createOrUpdateParticipantProfile(
-    user,
-    submission.id,
-    participant,
-  );
+    await this.createOrUpdateParticipantProfile(
+      user,
+      submission.id,
+      participant,
+    );
 
-  let savedParticipant;
-  if (existingParticipant && existingParticipant.deleted_at) {
-    await this.repo.restore(existingParticipant.id);
-    existingParticipant.deleted_at = null as any;
-    existingParticipant.submission_id = submission.id;
-    existingParticipant.status = "approved";
-    savedParticipant = await this.repo.save(existingParticipant);
-  } else {
-    savedParticipant = await this.repo.save(
-      this.repo.create({
+    let savedParticipant;
+    if (existingParticipant && existingParticipant.deleted_at) {
+      await this.repo.restore(existingParticipant.id);
+      existingParticipant.deleted_at = null as any;
+      existingParticipant.submission_id = submission.id;
+      existingParticipant.status = "approved";
+      savedParticipant = await this.repo.save(existingParticipant);
+    } else {
+      savedParticipant = await this.repo.save(
+        this.repo.create({
+          contest_id,
+          submission_id: submission.id,
+          user_id: user.id,
+          status: "approved",
+        }),
+      );
+    }
+
+    // Send registration_successful email notification
+    const participantName = participant.fullName
+      || `${participant.firstName || ""} ${participant.lastName || ""}`.trim()
+      || "Participant";
+    const participantEmail = participant.email || user.email;
+
+    if (participantEmail) {
+      await this.notificationService.sendTemplateNotification(
+        participantEmail,
         contest_id,
-        submission_id: submission.id,
-        user_id: user.id,
-        status: "approved",
-      }),
-    );
+        "participant" as any,
+        "registration_successful" as any,
+        {
+          participant_name: participantName,
+          contest_name: contest.name || "",
+          end_date: contest.end_date
+            ? new Date(contest.end_date).toLocaleDateString()
+            : "",
+        }
+      );
+    }
+
+    return savedParticipant;
   }
-
-  // Send registration_successful email notification
-  const participantName = participant.fullName
-    || `${participant.firstName || ""} ${participant.lastName || ""}`.trim()
-    || "Participant";
-  const participantEmail = participant.email || user.email;
-
-  if (participantEmail) {
-    await this.notificationService.sendTemplateNotification(
-      participantEmail,
-      contest_id,
-      "participant" as any,
-      "registration_successful" as any,
-      {
-        participant_name: participantName,
-        contest_name: contest.name || "",
-        end_date: contest.end_date
-          ? new Date(contest.end_date).toLocaleDateString()
-          : "",
-      }
-    );
-  }
-
-  return savedParticipant;
-}
 
   async getParticipantById(id: string, contest_id: string) {
     const participant = await this.repo.findById(id, contest_id);
     if (!participant) throw new NotFoundError("Participant not found");
 
     const contest = await this.contestRepo.findById(contest_id);
-    const template = contest?.user_level_template_id 
+    const template = contest?.user_level_template_id
       ? await this.templateRepo.findById(contest.user_level_template_id)
       : null;
     const entryTemplate = contest?.entry_level_template_id
@@ -404,297 +408,297 @@ export class ParticipantService {
   }
 
   private flattenFields(fields: any[]): any[] {
-  return fields.flatMap((field) => [
-    field,
-    ...(field.config?.children
-      ? this.flattenFields(field.config.children)
-      : []),
-  ]);
-}
+    return fields.flatMap((field) => [
+      field,
+      ...(field.config?.children
+        ? this.flattenFields(field.config.children)
+        : []),
+    ]);
+  }
 
-private getFieldValue(
-  fields: any[],
-  formData: any,
-  labels: string[],
-) {
-  const field = fields.find((f) =>
-    labels.some((label) =>
-      f.label?.toLowerCase().trim().includes(label.toLowerCase()),
-    ),
-  );
+  private getFieldValue(
+    fields: any[],
+    formData: any,
+    labels: string[],
+  ) {
+    const field = fields.find((f) =>
+      labels.some((label) =>
+        f.label?.toLowerCase().trim().includes(label.toLowerCase()),
+      ),
+    );
 
-  return field ? formData[field.id] : undefined;
-}
-private extractParticipantData(
-  fields: any[],
-  formData: any,
-) {
-  let firstName = this.getFieldValue(fields, formData, [
-    "first name",
-    "firstname",
-    "first_name",
-    "Firstname"
-  ]) || "";
+    return field ? formData[field.id] : undefined;
+  }
+  private extractParticipantData(
+    fields: any[],
+    formData: any,
+  ) {
+    let firstName = this.getFieldValue(fields, formData, [
+      "first name",
+      "firstname",
+      "first_name",
+      "Firstname"
+    ]) || "";
 
-  let lastName = this.getFieldValue(fields, formData, [
-    "last name",
-    "lastname",
-    "last_name",
-    "Lastname"
-  ]) || "";
+    let lastName = this.getFieldValue(fields, formData, [
+      "last name",
+      "lastname",
+      "last_name",
+      "Lastname"
+    ]) || "";
 
-  let fullName = this.getFieldValue(fields, formData, [
-    "full name",
-    "fullname",
-    "full_name",
-    "Name"
-  ]) || "";
+    let fullName = this.getFieldValue(fields, formData, [
+      "full name",
+      "fullname",
+      "full_name",
+      "Name"
+    ]) || "";
 
-  let email = this.getFieldValue(fields, formData, [
-    "email",
-    "email address",
-    "Email"
-  ]) || "";
+    let email = this.getFieldValue(fields, formData, [
+      "email",
+      "email address",
+      "Email"
+    ]) || "";
 
-  let phone = this.getFieldValue(fields, formData, [
-    "phone",
-    "phone number",
-    "mobile",
-    "mobile number",
-    "contact number",
-    "Mobile Number",
-  ]) || "";
+    let phone = this.getFieldValue(fields, formData, [
+      "phone",
+      "phone number",
+      "mobile",
+      "mobile number",
+      "contact number",
+      "Mobile Number",
+    ]) || "";
 
-  // Split full name if first/last name not provided
-  if (fullName && (!firstName || !lastName)) {
-    const parts = fullName.trim().split(/\s+/);
+    // Split full name if first/last name not provided
+    if (fullName && (!firstName || !lastName)) {
+      const parts = fullName.trim().split(/\s+/);
 
-    if (!firstName) {
-      firstName = parts.shift() || "";
+      if (!firstName) {
+        firstName = parts.shift() || "";
+      }
+
+      if (!lastName) {
+        lastName = parts.join(" ");
+      }
     }
 
-    if (!lastName) {
-      lastName = parts.join(" ");
-    }
-  }
+    firstName = firstName.trim();
+    lastName = lastName.trim();
+    fullName = fullName || `${firstName} ${lastName}`.trim();
+    phone = phone.trim();
 
-  firstName = firstName.trim();
-  lastName = lastName.trim();
-  fullName = fullName || `${firstName} ${lastName}`.trim();
-  phone = phone.trim();
+    return {
+      firstName,
+      lastName,
+      fullName,
+      email,
+      phone,
+      password: this.getFieldValue(fields, formData, [
+        "password",
+        "Password"
+      ]),
 
-  return {
-    firstName,
-    lastName,
-    fullName,
-    email,
-    phone,
-    password: this.getFieldValue(fields, formData, [
-      "password",
-      "Password"
-    ]),
+      dateOfBirth: this.getFieldValue(fields, formData, [
+        "dob",
+        "date of birth",
+        "birth date",
+        "birthday",
+      ]),
 
-    dateOfBirth: this.getFieldValue(fields, formData, [
-      "dob",
-      "date of birth",
-      "birth date",
-      "birthday",
-    ]),
+      avatarUrl: this.getFieldValue(fields, formData, [
+        "avatar",
+        "Avatar",
+      ]),
 
-    avatarUrl: this.getFieldValue(fields, formData, [
-      "avatar",
-      "Avatar",
-    ]),
+      schoolName: this.getFieldValue(fields, formData, [
+        "school",
+        "school name",
+        "School"
+      ]),
 
-    schoolName: this.getFieldValue(fields, formData, [
-      "school",
-      "school name",
-      "School"
-    ]),
+      grade: this.getFieldValue(fields, formData, [
+        "grade",
+        "class",
+        "year",
+        "standard",
+      ]),
 
-    grade: this.getFieldValue(fields, formData, [
-      "grade",
-      "class",
-      "year",
-      "standard",
-    ]),
+      country: this.getFieldValue(fields, formData, [
+        "country",
+        "country of residence",
+      ]),
 
-    country: this.getFieldValue(fields, formData, [
-      "country",
-      "country of residence",
-    ]),
+      fatherName: this.getFieldValue(fields, formData, [
+        "father",
+        "father's name",
+        "father name",
+      ]),
 
-    fatherName: this.getFieldValue(fields, formData, [
-      "father",
-      "father's name",
-      "father name",
-    ]),
+      innovationTitle: this.getFieldValue(fields, formData, [
+        "innovation title",
+        "title",
+      ]),
 
-    innovationTitle: this.getFieldValue(fields, formData, [
-      "innovation title",
-      "title",
-    ]),
-
-    innovationDocument: this.getFieldValue(fields, formData, [
-      "innovation document",
-      "document",
-      "file",
-    ]),
-  };
-}
-private async getContest(id: string) {
-  const contest = await this.contestRepo.findById(id);
-
-  if (!contest) {
-    throw new NotFoundError("Contest not found");
-  }
-
-  if (!contest.user_level_template_id) {
-    throw new NotFoundError(
-      "User level template ID missing",
-    );
-  }
-
-  return contest;
-}
-
-private async getTemplate(id: string) {
-  const template = await this.templateRepo.findById(id);
-
-  if (!template) {
-    throw new NotFoundError(
-      "Form template not found",
-    );
-  }
-
-  return template;
-}
-
-private async createOrUpdateParticipantUser(
-  participant: any,
-  answers: Record<string, any>,
-  templateId: string,
-) {
-  let resolvedEmail = participant.email;
-  if (!resolvedEmail) {
-    resolvedEmail = `participant_${Date.now()}_${Math.random()
-      .toString(36)
-      .substring(2, 6)}@launchpad-temp.com`;
-  }
-
-  let user = await this.userRepo.findByEmailWithParticipantProfile(resolvedEmail);
-
-  const fullName = participant.fullName || `${participant.firstName || ""} ${participant.lastName || ""}`.trim();
-
-  if (!user) {
-    const rawPassword = participant.password || crypto.randomBytes(16).toString("hex");
-    const hashedPassword = await bcrypt.hash(rawPassword, 12);
-
-    user = await this.userRepo.save(
-      this.userRepo.create({
-        firstName: participant.firstName || "",
-        lastName: participant.lastName || "",
-        fullName: fullName,
-        email: resolvedEmail,
-        phone: participant.phone || "",
-        password: hashedPassword || "",
-        role: UserRole.PARTICIPANT,
-        form_template_id: templateId,
-        participant_profile_data: answers,
-        avatarUrl: participant.avatarUrl || undefined,
-      }),
-    );
-  } else {
-    user.participant_profile_data = {
-      ...(user.participant_profile_data || {}),
-      ...answers,
+      innovationDocument: this.getFieldValue(fields, formData, [
+        "innovation document",
+        "document",
+        "file",
+      ]),
     };
-    if (participant.firstName) {
-      user.firstName = participant.firstName;
-    }
-    if (participant.lastName) {
-      user.lastName = participant.lastName;
-    }
-    if (participant.phone) {
-      user.phone = participant.phone;
-    }
-    if(participant.fullName){
-      user.fullName = participant.fullName;
-    }
-    if (participant.avatarUrl) {
-      user.avatarUrl = participant.avatarUrl;
+  }
+  private async getContest(id: string) {
+    const contest = await this.contestRepo.findById(id);
+
+    if (!contest) {
+      throw new NotFoundError("Contest not found");
     }
 
-    user.form_template_id = templateId;
+    if (!contest.user_level_template_id) {
+      throw new NotFoundError(
+        "User level template ID missing",
+      );
+    }
 
-    await this.userRepo.save(user);
+    return contest;
   }
 
-  return user;
-}
+  private async getTemplate(id: string) {
+    const template = await this.templateRepo.findById(id);
 
-private async createOrUpdateParticipantProfile(
-  user: any,
-  submissionId: string,
-  participant: any,
-) {
-  if (!user.participantProfile) {
-    const profileData: any = {
-      user,
-      submission_id: submissionId,
-      schoolName: participant.schoolName,
-      country: participant.country,
-      grade: participant.grade,
-    };
-
-    if (participant.dateOfBirth) {
-      profileData.dateOfBirth = new Date(participant.dateOfBirth);
+    if (!template) {
+      throw new NotFoundError(
+        "Form template not found",
+      );
     }
 
-    const profile = await this.participantProfileRepo.save(
-      this.participantProfileRepo.create(profileData),
-    );
+    return template;
+  }
 
-    user.participantProfile = profile;
-  } else {
-    const existingProfile = user.participantProfile;
-    let profileUpdated = false;
-
-    if (participant.dateOfBirth) {
-      existingProfile.dateOfBirth = new Date(participant.dateOfBirth);
-      profileUpdated = true;
-    }
-    if (participant.country) {
-      existingProfile.country = participant.country;
-      profileUpdated = true;
-    }
-    if (participant.schoolName) {
-      existingProfile.schoolName = participant.schoolName;
-      profileUpdated = true;
-    }
-    if (participant.grade) {
-      existingProfile.grade = participant.grade;
-      profileUpdated = true;
+  private async createOrUpdateParticipantUser(
+    participant: any,
+    answers: Record<string, any>,
+    templateId: string,
+  ) {
+    let resolvedEmail = participant.email;
+    if (!resolvedEmail) {
+      resolvedEmail = `participant_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 6)}@launchpad-temp.com`;
     }
 
-    if (profileUpdated) {
-      await this.participantProfileRepo.save(existingProfile);
+    let user = await this.userRepo.findByEmailWithParticipantProfile(resolvedEmail);
+
+    const fullName = participant.fullName || `${participant.firstName || ""} ${participant.lastName || ""}`.trim();
+
+    if (!user) {
+      const rawPassword = participant.password || crypto.randomBytes(16).toString("hex");
+      const hashedPassword = await bcrypt.hash(rawPassword, 12);
+
+      user = await this.userRepo.save(
+        this.userRepo.create({
+          firstName: participant.firstName || "",
+          lastName: participant.lastName || "",
+          fullName: fullName,
+          email: resolvedEmail,
+          phone: participant.phone || "",
+          password: hashedPassword || "",
+          role: UserRole.PARTICIPANT,
+          form_template_id: templateId,
+          participant_profile_data: answers,
+          avatarUrl: participant.avatarUrl || undefined,
+        }),
+      );
+    } else {
+      user.participant_profile_data = {
+        ...(user.participant_profile_data || {}),
+        ...answers,
+      };
+      if (participant.firstName) {
+        user.firstName = participant.firstName;
+      }
+      if (participant.lastName) {
+        user.lastName = participant.lastName;
+      }
+      if (participant.phone) {
+        user.phone = participant.phone;
+      }
+      if (participant.fullName) {
+        user.fullName = participant.fullName;
+      }
+      if (participant.avatarUrl) {
+        user.avatarUrl = participant.avatarUrl;
+      }
+
+      user.form_template_id = templateId;
+
+      await this.userRepo.save(user);
+    }
+
+    return user;
+  }
+
+  private async createOrUpdateParticipantProfile(
+    user: any,
+    submissionId: string,
+    participant: any,
+  ) {
+    if (!user.participantProfile) {
+      const profileData: any = {
+        user,
+        submission_id: submissionId,
+        schoolName: participant.schoolName,
+        country: participant.country,
+        grade: participant.grade,
+      };
+
+      if (participant.dateOfBirth) {
+        profileData.dateOfBirth = new Date(participant.dateOfBirth);
+      }
+
+      const profile = await this.participantProfileRepo.save(
+        this.participantProfileRepo.create(profileData),
+      );
+
+      user.participantProfile = profile;
+    } else {
+      const existingProfile = user.participantProfile;
+      let profileUpdated = false;
+
+      if (participant.dateOfBirth) {
+        existingProfile.dateOfBirth = new Date(participant.dateOfBirth);
+        profileUpdated = true;
+      }
+      if (participant.country) {
+        existingProfile.country = participant.country;
+        profileUpdated = true;
+      }
+      if (participant.schoolName) {
+        existingProfile.schoolName = participant.schoolName;
+        profileUpdated = true;
+      }
+      if (participant.grade) {
+        existingProfile.grade = participant.grade;
+        profileUpdated = true;
+      }
+
+      if (profileUpdated) {
+        await this.participantProfileRepo.save(existingProfile);
+      }
     }
   }
-}
 
-private async ensureParticipantNotExists(contestId: string, userId: string) {
-  const existingParticipant = await this.repo.findOne({
-    where: {
-      contest_id: contestId,
-      user_id: userId,
-    },
-  });
+  private async ensureParticipantNotExists(contestId: string, userId: string) {
+    const existingParticipant = await this.repo.findOne({
+      where: {
+        contest_id: contestId,
+        user_id: userId,
+      },
+    });
 
-  if (existingParticipant) {
-    throw new BadRequestError("Participant already joined this contest");
+    if (existingParticipant) {
+      throw new BadRequestError("Participant already joined this contest");
+    }
   }
-}
 
   private async processFileUploads(
     contest_id: string,
@@ -709,7 +713,7 @@ private async ensureParticipantNotExists(contestId: string, userId: string) {
       if (field.type === "file_upload") {
         // Check if there is an uploaded file in multipart form-data
         const uploadedFile = files && files.find((f) => f.fieldname === `formData[${field.id}]` || f.fieldname === field.id);
-        
+
         let buffer: Buffer;
         let filename: string;
         let mimeType: string;
@@ -788,7 +792,7 @@ private async ensureParticipantNotExists(contestId: string, userId: string) {
         const s3Service = new S3Service();
         const key = `users/contest-${contest_id}/${field.id}-${Date.now()}-${filename}`;
         const url = await s3Service.uploadFile(key, buffer, mimeType);
-        
+
         data[field.id] = url;
       }
     }

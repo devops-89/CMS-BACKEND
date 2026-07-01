@@ -36,16 +36,34 @@ export class Contest {
   })
   status!: "Draft" | "Published" | "Offline" | "SemiFinal" | "Final" | "Completed" | "WinnerAnnounced";
 
+  @Column({
+    type: "boolean",
+    default: true,
+  })
+  allow_new_registrations!: boolean;
+
+  @Column({
+    type: "boolean",
+    default: true,
+  })
+  public_visibility!: boolean;
+
+  @Column({
+    type: "boolean",
+    default: false,
+  })
+  auto_moderate_entries!: boolean;
+
   @Column({ type: "simple-array", nullable: true })
   available_regions!: string[];
 
   @Column({
-  type: "text",
-  array: true,
-  nullable: true,
-  default: () => "ARRAY[]::text[]",
-})
-available_countries?: string[];
+    type: "text",
+    array: true,
+    nullable: true,
+    default: () => "ARRAY[]::text[]",
+  })
+  available_countries?: string[];
 
   @ManyToOne(() => FormTemplate, { nullable: true, onDelete: "RESTRICT", eager: true })
   @JoinColumn({ name: "form_template_id" })
@@ -90,29 +108,29 @@ available_countries?: string[];
   entryAssignments!: EntryAssignment[];
 
   @OneToMany(() => Vote, (vote) => vote.contest)
-votes!: Vote[];
+  votes!: Vote[];
 
   @ManyToOne(() => User, {
-  nullable: true,
-  onDelete: "SET NULL",
-  eager: false,
-})
-@JoinColumn({ name: "created_by" })
-createdBy?: User;
+    nullable: true,
+    onDelete: "SET NULL",
+    eager: false,
+  })
+  @JoinColumn({ name: "created_by" })
+  createdBy?: User;
 
-@Column({ type: "uuid", nullable: true })
-created_by?: string;
+  @Column({ type: "uuid", nullable: true })
+  created_by?: string;
 
-@ManyToOne(() => User, {
-  nullable: true,
-  onDelete: "SET NULL",
-  eager: false,
-})
-@JoinColumn({ name: "winner_id" })
-winner?: User;
+  @ManyToOne(() => User, {
+    nullable: true,
+    onDelete: "SET NULL",
+    eager: false,
+  })
+  @JoinColumn({ name: "winner_id" })
+  winner?: User;
 
-@Column({ type: "uuid", nullable: true })
-winner_id?: string;
+  @Column({ type: "uuid", nullable: true })
+  winner_id?: string;
 
   @CreateDateColumn()
   created_at!: Date;
