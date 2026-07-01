@@ -54,6 +54,9 @@ export class S3Service {
 
         this.endpoint = endpoint;
 
+        const accessKeyId = (process.env['AWS_ACCESS_KEY_ID'] || '').trim();
+        const secretAccessKey = (process.env['AWS_SECRET_ACCESS_KEY'] || '').trim();
+
         this.s3Client = new S3Client({
             region:
                 process.env['AWS_REGION'] ||
@@ -64,17 +67,32 @@ export class S3Service {
             forcePathStyle: true,
 
             credentials: {
-                accessKeyId:
-                    process.env[
-                    'AWS_ACCESS_KEY_ID'
-                    ]!,
-
-                secretAccessKey:
-                    process.env[
-                    'AWS_SECRET_ACCESS_KEY'
-                    ]!,
+                accessKeyId,
+                secretAccessKey,
             },
         });
+
+        this.initializeClockOffset(endpoint);
+    }
+
+    private async initializeClockOffset(endpoint: string) {
+        try {
+            const start = Date.now();
+            const response = await axios.head(endpoint, { timeout: 2000 });
+            const serverDateStr = response.headers['date'];
+            if (serverDateStr) {
+                const serverTime = new Date(serverDateStr).getTime();
+                const localTime = Date.now();
+                const roundTripTime = localTime - start;
+                const adjustedLocalTime = localTime - (roundTripTime / 2);
+                const offset = serverTime - adjustedLocalTime;
+                
+                (this.s3Client.config as any).systemClockOffset = offset;
+                console.log(`[S3 Clock Sync] Successfully synced clock with endpoint. Local: ${new Date(localTime).toISOString()}, Server: ${new Date(serverTime).toISOString()}, Offset: ${offset}ms`);
+            }
+        } catch (error: any) {
+            console.warn(`[S3 Clock Sync] Failed to sync clock offset: ${error.message}. Defaulting to system time.`);
+        }
     }
 
     private getFileUrl(key: string): string {

@@ -160,10 +160,11 @@ export class UserRepository {
     }
 
     if (status) {
-      if (role === UserRole.PARTICIPANT) {
+      if (role === UserRole.PARTICIPANT && status.toLowerCase() !== "pending") {
         qb.andWhere("participants.status = :status", { status: status.toLowerCase() });
       } else {
-        qb.andWhere("user.status = :status", { status });
+        const statusValue = status.toLowerCase() === "pending" ? UserStatus.PENDING : status;
+        qb.andWhere("user.status = :status", { status: statusValue });
       }
     }
 
@@ -209,10 +210,11 @@ export class UserRepository {
     }
 
     if (status) {
-      if (role === UserRole.PARTICIPANT) {
+      if (role === UserRole.PARTICIPANT && status.toLowerCase() !== "pending") {
         qb.andWhere("participants.status = :status", { status: status.toLowerCase() });
       } else {
-        qb.andWhere("user.status = :status", { status });
+        const statusValue = status.toLowerCase() === "pending" ? UserStatus.PENDING : status;
+        qb.andWhere("user.status = :status", { status: statusValue });
       }
     }
 

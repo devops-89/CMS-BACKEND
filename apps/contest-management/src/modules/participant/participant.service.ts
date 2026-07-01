@@ -219,9 +219,36 @@ export class ParticipantService {
     const template = contest?.user_level_template_id 
       ? await this.templateRepo.findById(contest.user_level_template_id)
       : null;
+    const entryTemplate = contest?.entry_level_template_id
+      ? await this.templateRepo.findById(contest.entry_level_template_id)
+      : null;
 
     if (participant.submission && template) {
       participant.submission = await this.appendDownloadUrlsToSubmission(participant.submission, template);
+    }
+
+    if (participant.user) {
+      if (participant.user.avatarUrl) {
+        try {
+          const s3Service = new S3Service();
+          (participant.user as any).avatarDownloadUrl = await s3Service.getDownloadUrl(participant.user.avatarUrl);
+        } catch (e) {
+          console.error("Failed to generate download url for user avatar", e);
+        }
+      }
+      if (participant.user.participant_profile_data) {
+        participant.user.participant_profile_data = await this.appendDownloadUrlsToData(participant.user.participant_profile_data);
+      }
+    }
+
+    if (entryTemplate && participant.entries && participant.entries.length > 0) {
+      await Promise.all(
+        participant.entries.map(async (entry) => {
+          if (entry.submission) {
+            entry.submission = await this.appendDownloadUrlsToSubmission(entry.submission, entryTemplate);
+          }
+        })
+      );
     }
 
     return participant;
@@ -784,9 +811,11 @@ private async ensureParticipantNotExists(contestId: string, userId: string) {
     for (const field of fields) {
       if (field.type === "file_upload") {
         const val = submissionData[field.id];
-        if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
+        if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://") || val.includes("users/"))) {
           try {
-            const downloadUrl = await s3Service.getDownloadUrl(val);
+            const usersIdx = val.indexOf("users/");
+            const s3Key = usersIdx !== -1 ? val.substring(usersIdx) : val;
+            const downloadUrl = await s3Service.getDownloadUrl(s3Key);
             submissionData[`${field.id}_downloadUrl`] = downloadUrl;
           } catch (error) {
             console.error(`Failed to generate download URL for field ${field.id}:`, error);
