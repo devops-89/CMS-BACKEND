@@ -490,7 +490,7 @@ export class AuthController {
         });
       }
 
-      // ⏱ Expiry check
+      //  Expiry check
       if (record.expires_at < new Date()) {
         return res.status(400).json({
           message: "OTP expired",
@@ -503,7 +503,7 @@ export class AuthController {
         });
       }
 
-      // 🔐 Compare OTP
+      //  Compare OTP
       const isValid = await bcrypt.compare(otp, record.otp);
 
       if (!isValid) {
@@ -512,7 +512,17 @@ export class AuthController {
         });
       }
 
-      // 🔑 Update password
+      //  Check if new password is different from the old password
+      if (user.password) {
+        const isSamePassword = await bcrypt.compare(password, user.password);
+        if (isSamePassword) {
+          return res.status(400).json({
+            message: "New password must be different from the old password",
+          });
+        }
+      }
+
+      //  Update password
       const hashedPassword = await bcrypt.hash(password, 12);
       await this.userRepo.updatePassword(user.id, hashedPassword);
 
