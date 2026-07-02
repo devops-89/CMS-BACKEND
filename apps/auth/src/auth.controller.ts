@@ -6,7 +6,7 @@ import { UserRepository, RoleRepository } from "@libs/repositories";
 import { AdminProfileRepository } from "@libs/repositories";
 import { JudgeProfileRepository } from "@libs/repositories";
 import { ParticipantProfileRepository } from "@libs/repositories";
-import {NotificationService} from "@libs/notifications/notification.service";
+import { NotificationService } from "@libs/notifications/notification.service";
 import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
 import { OtpsRepository } from "@libs/repositories/otps.repository";
 
@@ -35,7 +35,7 @@ export class AuthController {
   private refreshTokenRepo = new RefreshTokenRepository();
   private otpRepo = new OtpsRepository();
 
-  private notificationService=new NotificationService();
+  private notificationService = new NotificationService();
   private roleRepo = new RoleRepository();
 
   /* -------------------------------- REGISTER -------------------------------- */
@@ -101,80 +101,80 @@ export class AuthController {
   }
 
   async registerJudge(
-  req: Request<{}, {}, RegisterJudgeDto>,
-  res: Response
-) {
-  const queryRunner = AppDataSource.createQueryRunner();
+    req: Request<{}, {}, RegisterJudgeDto>,
+    res: Response
+  ) {
+    const queryRunner = AppDataSource.createQueryRunner();
 
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-  try {
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      expertise,
-    } = req.body;
+    try {
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        expertise,
+      } = req.body;
 
-    //  Check existing user
-    const existingUser = await queryRunner.manager.findOne(User, {
-      where: { email },
-    });
-
-    if (existingUser) {
-      return res.status(409).json({
-        message: "Email already in use",
+      //  Check existing user
+      const existingUser = await queryRunner.manager.findOne(User, {
+        where: { email },
       });
+
+      if (existingUser) {
+        return res.status(409).json({
+          message: "Email already in use",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      //  Create User (Judge role + Pending status)
+      const user = queryRunner.manager.create(User, {
+        firstName,
+        lastName,
+        email,
+        phone,
+        password: hashedPassword,
+        role: UserRole.JUDGE,
+        status: UserStatus.ACTIVE,
+      });
+
+      await queryRunner.manager.save(user);
+
+      //  Create Judge Profile
+      const judgeProfile = queryRunner.manager.create(JudgeProfile, {
+        user,
+        expertise: expertise || null,
+      });
+
+      await queryRunner.manager.save(judgeProfile);
+
+      await queryRunner.commitTransaction();
+
+      return res.status(201).json({
+        message: "Judge registered successfully",
+        data: {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          judgeProfile,
+        },
+      });
+    } catch (error: any) {
+      await queryRunner.rollbackTransaction();
+
+      return res.status(500).json({
+        message: "Judge registration failed",
+        error: error.message,
+      });
+    } finally {
+      await queryRunner.release();
     }
-
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    //  Create User (Judge role + Pending status)
-    const user = queryRunner.manager.create(User, {
-      firstName,
-      lastName,
-      email,
-      phone,
-      password: hashedPassword,
-      role: UserRole.JUDGE,
-      status: UserStatus.ACTIVE,
-    });
-
-    await queryRunner.manager.save(user);
-
-    //  Create Judge Profile
-    const judgeProfile = queryRunner.manager.create(JudgeProfile, {
-      user,
-      expertise: expertise || null,
-    });
-
-    await queryRunner.manager.save(judgeProfile);
-
-    await queryRunner.commitTransaction();
-
-    return res.status(201).json({
-      message: "Judge registered successfully",
-      data: {
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        judgeProfile,
-      },
-    });
-  } catch (error: any) {
-    await queryRunner.rollbackTransaction();
-
-    return res.status(500).json({
-      message: "Judge registration failed",
-      error: error.message,
-    });
-  } finally {
-    await queryRunner.release();
   }
-}
 
   async registerParticipant(
     req: Request<{}, {}, RegisterParticipantDto>,
@@ -273,9 +273,9 @@ export class AuthController {
         });
       }
 
-      if (user.deleted_at){
+      if (user.deleted_at) {
         return res.status(403).json({
-          message:"Your profile is deleted.please contact admin to restore your profile."
+          message: "Your profile is deleted.please contact admin to restore your profile."
         })
       }
 
@@ -432,8 +432,8 @@ export class AuthController {
       const user = await this.userRepo.findByEmail(email);
 
       if (!user) {
-        return res.json({
-          message: "If email exists, OTP sent",
+        return res.status(404).json({
+          message: "We couldn't find an account associated with that email address. Please check and try again.",
         });
       }
 
