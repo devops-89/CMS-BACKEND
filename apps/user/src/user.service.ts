@@ -322,11 +322,12 @@ export class UserService {
         submission_id: submission.id,
       });
     } else {
-      existingProfile.dateOfBirth = dob || existingProfile.dateOfBirth;
-      existingProfile.grade = grade || existingProfile.grade;
-      existingProfile.schoolName = schoolName || existingProfile.schoolName;
-      existingProfile.submission_id = submission.id;
-      await this.participantRepo.save(existingProfile);
+      await this.participantRepo.updateParticipantProfile(user.id, {
+        dateOfBirth: dob || existingProfile.dateOfBirth,
+        grade: grade || existingProfile.grade,
+        schoolName: schoolName || existingProfile.schoolName,
+        submission_id: submission.id,
+      });
     }
 
     // Note: Participant record is created after OTP verification.
