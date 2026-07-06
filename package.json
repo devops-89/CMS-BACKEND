@@ -4,6 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "nest build main",
+    "build:auth": "nest build auth",
+    "build:contest-management": "nest build contest-management",
+    "build:form-builder": "nest build form-builder",
+    "build:user": "nest build user",
+    "build:all": "npm run build:auth && npm run build:contest-management && npm run build:form-builder && npm run build:user",  
     "start:auth": "npm run dev:auth",
     "start:user": "npm run dev:user",
     "start:formbuilder": "npm run dev:formbuilder",

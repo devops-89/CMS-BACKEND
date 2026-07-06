@@ -18,3 +18,6 @@ pgdata
 
 .vscode
 .idea
+
+.kiro
+.kiro/*
