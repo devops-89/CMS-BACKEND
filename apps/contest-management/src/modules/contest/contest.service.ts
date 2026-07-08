@@ -1,6 +1,7 @@
 import { ContestRepository, EntryRepository, ParticipantRepository, VotingPeriodRepository, ContestJudgeRepository, JudgeAssignedVotingPeriodRepository, CountryRepository } from "@libs/repositories";
 import { NotFoundError, InternalServerError, ConflictError, UnprocessableEntityError, BadRequestError } from "@libs/utils/errors.util";
 import { Contest, VotingPeriod, VotingType, Entry } from "@libs/entities";
+import { S3Service } from "@libs/s3";
 export class ContestService {
   private repo = new ContestRepository();
   private participantRepo = new ParticipantRepository();
@@ -9,6 +10,35 @@ export class ContestService {
   private contestJudgeRepo = new ContestJudgeRepository();
   private judgeAssignedVotingPeriodRepo = new JudgeAssignedVotingPeriodRepository();
   private countryRepo = new CountryRepository();
+
+  private async populateImageDownloadUrl(contest: Contest | null): Promise<Contest | null> {
+    if (contest && contest.image_url) {
+      try {
+        const s3Service = new S3Service();
+        contest.imageDownloadUrl = await s3Service.getDownloadUrl(contest.image_url);
+      } catch (error) {
+        console.error(`Failed to generate download URL for contest ${contest.id}:`, error);
+      }
+    }
+    return contest;
+  }
+
+  private async populateImageDownloadUrls(contests: Contest[]): Promise<Contest[]> {
+    if (!contests || contests.length === 0) return contests;
+    const s3Service = new S3Service();
+    await Promise.all(
+      contests.map(async (contest) => {
+        if (contest && contest.image_url) {
+          try {
+            contest.imageDownloadUrl = await s3Service.getDownloadUrl(contest.image_url);
+          } catch (error) {
+            console.error(`Failed to generate download URL for contest ${contest.id}:`, error);
+          }
+        }
+      })
+    );
+    return contests;
+  }
 
   async createContestService(
     payload: {
@@ -21,8 +51,10 @@ export class ContestService {
       status?: "Draft" | "Published" | "Offline";
       entry_level_template_id?: string;
       user_level_template_id?: string;
+      image_url?: string;
     },
-    userId?: string
+    userId?: string,
+    imageFile?: Express.Multer.File
   ) {
     // check duplicate name
     const existing = await this.repo.findByName(payload.name);
@@ -50,14 +82,23 @@ export class ContestService {
       }
     }
 
+    let imageUrl: string | undefined = undefined;
+    if (imageFile) {
+      const s3Service = new S3Service();
+      const key = `contests/image-${Date.now()}-${imageFile.originalname}`;
+      imageUrl = await s3Service.uploadFile(key, imageFile.buffer, imageFile.mimetype);
+    }
+
     const contest = this.repo.create({
       ...payload,
       start_date: new Date(payload.start_date),
       end_date: new Date(payload.end_date),
       status: payload.status ?? "Draft",
       created_by: userId,
+      image_url: imageUrl || payload.image_url,
     });
-    return await this.repo.save(contest);
+    const saved = await this.repo.save(contest);
+    return await this.populateImageDownloadUrl(saved);
   }
 
   async getContests(status?: string, search?: string, page: number = 1, limit: number = 10, userId?: string, country?: string) {
@@ -83,13 +124,17 @@ export class ContestService {
         }
       }
     }
-    return await this.repo.findAll(status, search, page, limit, userId, countryId);
+    const result = await this.repo.findAll(status, search, page, limit, userId, countryId);
+    if (result && result.docs) {
+      await this.populateImageDownloadUrls(result.docs);
+    }
+    return result;
   }
 
   async getContestById(id: string) {
     const contest = await this.repo.findById(id);
     if (!contest) throw new NotFoundError("Contest not found");
-    return contest;
+    return await this.populateImageDownloadUrl(contest);
   }
 
   async getContestOverview(id: string, userId?: string) {
@@ -104,6 +149,8 @@ export class ContestService {
         throw new NotFoundError("Contest not found");
       }
     }
+
+    await this.populateImageDownloadUrl(contest);
 
     const stats = await this.repo.getStats(id);
 
@@ -128,6 +175,7 @@ export class ContestService {
 
     return {
       ...contest,
+      imageDownloadUrl: contest.imageDownloadUrl,
 
       // stats
       total_entries: parseInt(stats?.total_entries || "0"),
@@ -220,7 +268,8 @@ export class ContestService {
 
     try {
       await this.repo.update(id, updateData);
-      return await this.repo.findById(id);
+      const updated = await this.repo.findById(id);
+      return await this.populateImageDownloadUrl(updated);
     } catch {
       throw new InternalServerError("Failed to update contest");
     }
@@ -230,7 +279,8 @@ export class ContestService {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundError("Contest not found");
     await this.repo.update(id, { status });
-    return await this.repo.findById(id);
+    const updated = await this.repo.findById(id);
+    return await this.populateImageDownloadUrl(updated);
   }
 
   async deleteContest(id: string) {

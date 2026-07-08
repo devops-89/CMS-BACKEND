@@ -19,6 +19,7 @@ export const createContestSchema = z.object({
   form_template_id: z.string().uuid("Invalid form template ID").optional(),
   entry_level_template_id: z.string().uuid("Invalid entry level template ID").optional(),
   user_level_template_id: z.string().uuid("Invalid user level template ID").optional(),
+  image_url: z.string().optional(),
 }).refine((data) => {
   const start = new Date(data.start_date);
   const end = new Date(data.end_date);
@@ -46,7 +47,8 @@ export const updateContestSchema = z.object({
   user_level_template_id: z.string().uuid("Invalid user level template ID").optional(),
   public_visibility: z.boolean().optional(),
   auto_moderate_entries: z.boolean().optional(),
-  allow_new_registrations: z.boolean().optional()
+  allow_new_registrations: z.boolean().optional(),
+  image_url: z.string().optional()
 }).refine((data) => {
   if (data.start_date && data.end_date) {
     const start = new Date(data.start_date);

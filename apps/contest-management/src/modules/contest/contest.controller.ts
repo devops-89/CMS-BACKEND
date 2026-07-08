@@ -27,7 +27,11 @@ export class ContestController {
   createContest = async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user?.userId;
-      const data = await service.createContestService(req.body, userId);
+      const files = req.files as Express.Multer.File[];
+      const imageFile = files?.find(
+        (file) => file.fieldname === "image" || file.fieldname === "image_url" || file.fieldname === "imageUrl"
+      );
+      const data = await service.createContestService(req.body, userId, imageFile);
       return res.status(201).json({ message: "Contest created successfully", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });
