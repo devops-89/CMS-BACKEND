@@ -96,7 +96,11 @@ export class ContestController {
 
   update = async (req: Request<ContestParams>, res: Response) => {
     try {
-      const data = await service.updateContest(req.params.id, req.body);
+      const files = req.files as Express.Multer.File[];
+      const imageFile = files?.find(
+        (file) => file.fieldname === "image" || file.fieldname === "image_url" || file.fieldname === "imageUrl"
+      );
+      const data = await service.updateContest(req.params.id, req.body, imageFile);
       return res.status(200).json({ message: "Contest updated", data });
     } catch (e: any) {
       return res.status(e.statusCode || 400).json({ message: e.message });

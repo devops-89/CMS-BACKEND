@@ -36,6 +36,13 @@ const parseContestMultipartData = (req: any, res: any, next: any) => {
       } catch (e) {}
     }
 
+    // Parse boolean strings to booleans
+    const booleanKeys = ["public_visibility", "auto_moderate_entries", "allow_new_registrations"];
+    for (const key of booleanKeys) {
+      if (payload[key] === "true") payload[key] = true;
+      if (payload[key] === "false") payload[key] = false;
+    }
+
     req.body = payload;
   }
   next();
@@ -58,7 +65,14 @@ router.get("/voting-period/:votingPeriodId", controller.getVotingPeriodDetail.bi
 router.put("/voting-period/:votingPeriodId", controller.updateVotingPeriod.bind(controller));
 
 router.get("/:id", validate(contestIdParamSchema, "params"), controller.getOverview.bind(controller));
-router.put("/:id", validate(contestIdParamSchema, "params"), validate(updateContestSchema, "body"), controller.update.bind(controller));
+router.put(
+  "/:id",
+  validate(contestIdParamSchema, "params"),
+  upload.any(),
+  parseContestMultipartData,
+  validate(updateContestSchema, "body"),
+  controller.update.bind(controller)
+);
 router.patch("/:id/status", validate(contestIdParamSchema, "params"), validate(updateContestStatusSchema, "body"), controller.updateStatus.bind(controller));
 router.delete("/:id", validate(contestIdParamSchema, "params"), controller.delete.bind(controller));
 router.get("/:id/voting-period", validate(contestIdParamSchema, "params"), controller.getVotingPeriods.bind(controller));

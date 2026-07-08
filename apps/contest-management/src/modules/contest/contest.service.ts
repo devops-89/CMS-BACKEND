@@ -209,7 +209,9 @@ export class ContestService {
       allow_new_registrations: boolean;
       public_visibility: boolean;
       auto_moderate_entries: boolean;
-    }>
+      image_url: string;
+    }>,
+    imageFile?: Express.Multer.File
   ) {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundError("Contest not found");
@@ -233,6 +235,13 @@ export class ContestService {
       throw new BadRequestError("end_date must be after start_date");
     }
 
+    let imageUrl: string | undefined = undefined;
+    if (imageFile) {
+      const s3Service = new S3Service();
+      const key = `contests/image-${Date.now()}-${imageFile.originalname}`;
+      imageUrl = await s3Service.uploadFile(key, imageFile.buffer, imageFile.mimetype);
+    }
+
     const updateData: Partial<Contest> = {};
 
     if (payload.name) updateData.name = payload.name;
@@ -246,6 +255,11 @@ export class ContestService {
     if (payload.allow_new_registrations !== undefined) updateData.allow_new_registrations = payload.allow_new_registrations;
     if (payload.public_visibility !== undefined) updateData.public_visibility = payload.public_visibility;
     if (payload.auto_moderate_entries !== undefined) updateData.auto_moderate_entries = payload.auto_moderate_entries;
+    if (imageUrl) {
+      updateData.image_url = imageUrl;
+    } else if (payload.image_url !== undefined) {
+      updateData.image_url = payload.image_url;
+    }
 
     const now = new Date();
     if (end <= now) {
