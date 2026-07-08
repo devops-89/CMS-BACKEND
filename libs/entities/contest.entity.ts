@@ -32,6 +32,8 @@ export class Contest {
   @Column({ type: "varchar", length: 500, nullable: true })
   image_url?: string;
 
+  imageDownloadUrl?: string;
+
   @Column({
     type: "enum",
     enum: ["Draft", "Published", "Offline", "SemiFinal", "Final", "Completed", "WinnerAnnounced"],
