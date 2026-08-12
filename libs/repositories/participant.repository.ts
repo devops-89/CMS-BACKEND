@@ -1,0 +1,62 @@
+import { AppDataSource } from "@libs/database/data-source";
+import { Participant } from "@libs/entities";
+
+export class ParticipantRepository {
+  private repo = AppDataSource.getRepository(Participant);
+
+  create(data: Partial<Participant>) {
+    return this.repo.create(data);
+  }
+
+  save(participant: Participant) {
+    return this.repo.save(participant);
+  }
+
+  findByContest(contest_id: string, relations: string[] = ["submission"]) {
+    return this.repo.find({
+      where: { contest_id },
+      relations,
+      order: { joined_at: "DESC" },
+    });
+  }
+
+  findById(id: string, contest_id: string) {
+    return this.repo.findOne({
+      where: { id, contest_id },
+      relations: ["submission", "entries", "user"],
+    });
+  }
+
+  findByUserId(user_id: string) {
+    return this.repo.find({
+      where: { user_id },
+      relations: ["submission", "submission.template"],
+    });
+  }
+
+  findOne(options: any) {
+    return this.repo.findOne(options);
+  }
+
+  updateStatus(id: string, status: Participant["status"]) {
+    return this.repo.update(id, { status });
+  }
+
+  update(id: string, data: Partial<Participant>) {
+    return this.repo.update(id, data);
+  }
+
+  delete(id: string) {
+    return this.repo.softDelete(id);
+  }
+
+  restore(id: string) {
+    return this.repo.restore(id);
+  }
+
+  countByUser(user_id: string) {
+    return this.repo.count({
+      where: { user_id },
+    });
+  }
+}

@@ -1,0 +1,594 @@
+import { Request, Response } from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { AppDataSource } from "@libs/database/data-source";
+import { UserRepository, RoleRepository } from "@libs/repositories";
+import { AdminProfileRepository } from "@libs/repositories";
+import { JudgeProfileRepository } from "@libs/repositories";
+import { ParticipantProfileRepository } from "@libs/repositories";
+import { NotificationService } from "@libs/notifications/notification.service";
+import { RefreshTokenRepository } from "@libs/repositories/refresh-token.repository";
+import { OtpsRepository } from "@libs/repositories/otps.repository";
+
+import {
+  RegisterDto,
+  LoginDto,
+  RefreshDto,
+  LogoutDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  RegisterParticipantDto,
+  RegisterJudgeDto,
+} from "@libs/dto/auth.dto";
+
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "@libs/utils/jwt.util";
+import { JudgeProfile, ParticipantProfile, User, UserRole, UserStatus } from "@libs/entities";
+
+export class AuthController {
+  private userRepo = new UserRepository();
+  private adminRepo = new AdminProfileRepository();
+  private judgeRepo = new JudgeProfileRepository();
+  private participantRepo = new ParticipantProfileRepository();
+  private refreshTokenRepo = new RefreshTokenRepository();
+  private otpRepo = new OtpsRepository();
+
+  private notificationService = new NotificationService();
+  private roleRepo = new RoleRepository();
+
+  /* -------------------------------- REGISTER -------------------------------- */
+
+  async register(req: Request<{}, {}, RegisterDto>, res: Response) {
+    try {
+      const { email, password, role, firstName, lastName, phone } = req.body;
+
+      const existingUser = await this.userRepo.findByEmail(email);
+
+      if (existingUser) {
+        return res.status(409).json({
+          message: "User already exists",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      const roleEntity = await this.roleRepo.ensureRoleExists(role);
+      const isStandardUserRole = Object.values(UserRole).includes(role as UserRole);
+      const legacyRoleValue = isStandardUserRole ? (role as UserRole) : UserRole.PUBLIC;
+
+      //  FIX: don't send null, only send values if present
+      const user = await this.userRepo.createUser({
+        email,
+        password: hashedPassword,
+        role: legacyRoleValue,
+        roleEntity: roleEntity,
+        status: UserStatus.ACTIVE,
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
+        ...(phone && { phone }),
+      });
+
+      //  Role-based profile creation
+      if (role === UserRole.ADMIN) {
+        await this.adminRepo.createProfile({ user });
+      }
+
+      if (role === UserRole.JUDGE) {
+        await this.judgeRepo.createProfile({ user });
+      }
+
+      if (role === UserRole.PARTICIPANT) {
+        await this.participantRepo.createProfile({ user });
+      }
+
+      return res.status(201).json({
+        message: "User registered successfully",
+        data: {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Registration failed",
+        error: error.message,
+      });
+    }
+  }
+
+  async registerJudge(
+    req: Request<{}, {}, RegisterJudgeDto>,
+    res: Response
+  ) {
+    const queryRunner = AppDataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        expertise,
+      } = req.body;
+
+      //  Check existing user
+      const existingUser = await queryRunner.manager.findOne(User, {
+        where: { email },
+      });
+
+      if (existingUser) {
+        return res.status(409).json({
+          message: "Email already in use",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      //  Create User (Judge role + Pending status)
+      const user = queryRunner.manager.create(User, {
+        firstName,
+        lastName,
+        email,
+        phone,
+        password: hashedPassword,
+        role: UserRole.JUDGE,
+        status: UserStatus.ACTIVE,
+      });
+
+      await queryRunner.manager.save(user);
+
+      //  Create Judge Profile
+      const judgeProfile = queryRunner.manager.create(JudgeProfile, {
+        user,
+        expertise: expertise || null,
+      });
+
+      await queryRunner.manager.save(judgeProfile);
+
+      await queryRunner.commitTransaction();
+
+      return res.status(201).json({
+        message: "Judge registered successfully",
+        data: {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          judgeProfile,
+        },
+      });
+    } catch (error: any) {
+      await queryRunner.rollbackTransaction();
+
+      return res.status(500).json({
+        message: "Judge registration failed",
+        error: error.message,
+      });
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async registerParticipant(
+    req: Request<{}, {}, RegisterParticipantDto>,
+    res: Response,
+  ) {
+    const queryRunner = AppDataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        dateOfBirth,
+        country,
+        schoolName,
+        grade,
+      } = req.body;
+
+      //  Check existing user
+      const existingUser = await queryRunner.manager.findOne(User, {
+        where: { email },
+      });
+
+      if (existingUser) {
+        return res.status(409).json({
+          message: "User already exists",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      //  Create User (role is FIXED)
+      const user = queryRunner.manager.create(User, {
+        email,
+        password: hashedPassword,
+        role: UserRole.PARTICIPANT,
+        status: UserStatus.ACTIVE,
+        firstName,
+        lastName,
+        phone,
+      });
+
+      await queryRunner.manager.save(user);
+
+      //  Create Participant Profile
+      const profile = queryRunner.manager.create(ParticipantProfile, {
+        user,
+        dateOfBirth: new Date(dateOfBirth),
+        country,
+        schoolName,
+        grade,
+      });
+
+      await queryRunner.manager.save(profile);
+
+      //  Commit transaction
+      await queryRunner.commitTransaction();
+
+      return res.status(201).json({
+        message: "Participant registered successfully",
+        data: {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+        },
+      });
+    } catch (error: any) {
+      //  Rollback if anything fails
+      await queryRunner.rollbackTransaction();
+
+      return res.status(500).json({
+        message: "Participant registration failed",
+        error: error.message,
+      });
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /* -------------------------------- LOGIN -------------------------------- */
+
+  async login(req: Request<{}, {}, LoginDto>, res: Response) {
+    try {
+      const { email, password } = req.body;
+
+      const user = await this.userRepo.findByEmail(email);
+
+      if (!user) {
+        return res.status(401).json({
+          message: "Invalid credentials",
+        });
+      }
+
+      if (user.deleted_at) {
+        return res.status(403).json({
+          message: "Your profile is deleted.please contact admin to restore your profile."
+        })
+      }
+
+      if (user.status === UserStatus.PENDING) {
+        return res.status(403).json({
+          message: "Your account is pending verification. Please verify the OTP sent to your email to activate your account."
+        });
+      }
+
+      const match = await bcrypt.compare(password, user.password || "");
+
+      if (!match) {
+        return res.status(401).json({
+          message: "Invalid credentials",
+        });
+      }
+
+      const accessToken = generateAccessToken({
+        userId: user.id,
+        role: user.roleEntity?.name || user.role,
+      });
+
+      const refreshToken = generateRefreshToken({
+        userId: user.id,
+      });
+
+      const expires = new Date();
+      expires.setDate(expires.getDate() + 7);
+
+      await this.refreshTokenRepo.createToken(user.id, refreshToken, expires);
+
+      const fullUser = await this.userRepo.getUserById(user.id);
+      let contestId: string | null = null;
+      let contestCount = 0;
+      let contests: any[] = [];
+
+      if (fullUser) {
+        if (fullUser.participants) {
+          contestCount = fullUser.participants.length;
+          contests = fullUser.participants.map((p) => p.contest).filter(Boolean);
+          if (fullUser.participants.length > 0) {
+            contestId = fullUser.participants[0].contest_id;
+          }
+        } else if (fullUser.role === "judge" && fullUser.judgeProfile?.contestAssignments) {
+          const assignments = fullUser.judgeProfile.contestAssignments;
+          contestCount = assignments.length;
+          contests = assignments.map((a: any) => a.contest).filter(Boolean);
+          if (assignments.length > 0) {
+            contestId = assignments[0].contest_id;
+          }
+        }
+      }
+
+      return res.json({
+        message: "Login successful",
+        data: {
+          accessToken,
+          refreshToken,
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            roleId: user.role_id || user.roleEntity?.id,
+            roleEntity: user.roleEntity,
+            contestId,
+            contestCount,
+            contests,
+          },
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Login failed",
+        error: error.message,
+      });
+    }
+  }
+
+  /* ------------------------------ REFRESH TOKEN ----------------------------- */
+
+  async refresh(req: Request<{}, {}, RefreshDto>, res: Response) {
+    try {
+      const { refreshToken } = req.body;
+
+      const stored = await this.refreshTokenRepo.findToken(refreshToken);
+
+      if (!stored) {
+        return res.status(401).json({
+          message: "Invalid refresh token",
+        });
+      }
+
+      let decoded: any;
+
+      try {
+        decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!);
+      } catch {
+        return res.status(401).json({
+          message: "Refresh token expired",
+        });
+      }
+
+      const accessToken = generateAccessToken({
+        userId: decoded.userId,
+      });
+
+      return res.json({
+        message: "Token refreshed",
+        data: {
+          accessToken,
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Token refresh failed",
+        error: error.message,
+      });
+    }
+  }
+
+  /* -------------------------------- LOGOUT -------------------------------- */
+
+  async logout(req: Request<{}, {}, LogoutDto>, res: Response) {
+    try {
+      const { refreshToken } = req.body;
+
+      const stored = await this.refreshTokenRepo.findToken(refreshToken);
+
+      if (!stored) {
+        return res.status(400).json({
+          message: "Invalid Token!",
+        });
+      }
+
+      await this.refreshTokenRepo.deleteToken(refreshToken);
+
+      return res.json({
+        message: "Logged out successfully",
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Logout failed",
+        error: error.message,
+      });
+    }
+  }
+
+  /* ----------------------------- FORGOT PASSWORD(send otp) ---------------------------- */
+
+  async forgotPassword(req: Request<{}, {}, ForgotPasswordDto>, res: Response) {
+    try {
+      const { email } = req.body;
+
+      const user = await this.userRepo.findByEmail(email);
+
+      if (!user) {
+        return res.status(404).json({
+          message: "We couldn't find an account associated with that email address. Please check and try again.",
+        });
+      }
+
+      //  Delete old OTP
+      await this.otpRepo.deleteUserOtps(user.id);
+
+      //  Generate OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      //  Hash OTP
+      const hashedOtp = await bcrypt.hash(otp, 10);
+
+      //  Expiry (5 min)
+      const expires = new Date();
+      expires.setMinutes(expires.getMinutes() + 5);
+
+      //  Save OTP
+      await this.otpRepo.createOtp(user.id, hashedOtp, expires);
+
+      //  Send via email
+
+      await this.notificationService.sendOtp(user.email || "", otp, user.firstName || "");
+
+      return res.json({
+        message: "OTP sent successfully",
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Failed to send OTP",
+        error: error.message,
+      });
+    }
+  }
+
+  /* ------------------------------ RESET PASSWORD  ---------------------------- */
+
+  async resetPassword(req: Request<{}, {}, ResetPasswordDto>, res: Response) {
+    try {
+      const { email, otp, password } = req.body;
+
+      const user = await this.userRepo.findByEmail(email);
+
+      if (!user) {
+        return res.status(400).json({
+          message: "Invalid request",
+        });
+      }
+
+      const record = await this.otpRepo.findLatestOtp(user.id);
+
+      if (!record) {
+        return res.status(400).json({
+          message: "OTP not found",
+        });
+      }
+
+      //  Expiry check
+      if (record.expires_at < new Date()) {
+        return res.status(400).json({
+          message: "OTP expired",
+        });
+      }
+
+      if (record.isUsed) {
+        return res.status(400).json({
+          message: "OTP already used",
+        });
+      }
+
+      //  Compare OTP
+      const isValid = await bcrypt.compare(otp, record.otp);
+
+      if (!isValid) {
+        return res.status(400).json({
+          message: "Invalid OTP",
+        });
+      }
+
+      //  Check if new password is different from the old password
+      if (user.password) {
+        const isSamePassword = await bcrypt.compare(password, user.password);
+        if (isSamePassword) {
+          return res.status(400).json({
+            message: "New password must be different from the old password",
+          });
+        }
+      }
+
+      //  Update password
+      const hashedPassword = await bcrypt.hash(password, 12);
+      await this.userRepo.updatePassword(user.id, hashedPassword);
+
+      //  Mark OTP used
+      await this.otpRepo.markUsed(record.id);
+
+      return res.json({
+        message: "Password updated successfully",
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Password reset failed",
+        error: error.message,
+      });
+    }
+  }
+
+  /* ------------------------------- RESEND OTP ------------------------------ */
+
+  async resendOtp(req: Request<{}, {}, ForgotPasswordDto>, res: Response) {
+    try {
+      const { email } = req.body;
+
+      const user = await this.userRepo.findByEmail(email);
+
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      //  Delete old OTP
+      await this.otpRepo.deleteUserOtps(user.id);
+
+      //  Generate OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      //  Hash OTP
+      const hashedOtp = await bcrypt.hash(otp, 10);
+
+      //  Expiry (5 min)
+      const expires = new Date();
+      expires.setMinutes(expires.getMinutes() + 5);
+
+      //  Save OTP
+      await this.otpRepo.createOtp(user.id, hashedOtp, expires);
+
+      //  Send via email
+      await this.notificationService.sendOtp(user.email || "", otp, user.firstName || "");
+
+      return res.json({
+        message: "New OTP sent successfully",
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: "Failed to resend OTP",
+        error: error.message,
+      });
+    }
+  }
+
+  /* ------------------------------ HEALTH CHECK ----------------------------- */
+
+  async health(req: Request, res: Response) {
+    return res.status(200).json({
+      message: "Auth service healthy",
+    });
+  }
+}

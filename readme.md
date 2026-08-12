@@ -79,6 +79,25 @@ Start the docker container with the image:
 docker compose build --no-cache
 ```
 
+# Authentication Required 
 
+```
+POST /auth/register
+POST /auth/login
+POST /auth/refresh
+POST /auth/logout
+POST /auth/forgot-password
+POST /auth/reset-password
+GET  /auth/me
+```
 
+# Types of Middleware used in the Authentication:
+
+| Middleware     | Purpose               |
+| -------------- | --------------------- |
+| `validate`     | validate request body |
+| `authenticate` | verify JWT token      |
+| `authorize`    | check user role       |
+
+# Edge Cases Covered in Authentication APIs
 
